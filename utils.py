@@ -28,7 +28,7 @@ def read(filename):
                     else:
                         break
     if coord and not D:
-        XY = np.array(coord.values())
+        XY = np.array(list(coord.values()))
         D = cdist(XY, XY)
         """
         for v in coord.values():
