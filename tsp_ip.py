@@ -16,7 +16,7 @@ def solve(ncity: int, D: List[float]) -> List[int]:
             problem += u[i] - u[j] + ncity*x[i][j] <= ncity - 1
     for j in cities:
         problem += pulp.lpSum(x[i][j] for i in cities) == 1# 移動元は一つの都市
-    status = problem.solve(pulp.PULP_CPLEX_CMD(msg=1))
+    status = problem.solve(pulp.CPLEX_CMD(msg=1))
     tour = []
     for i in cities:
         for j in cities:
