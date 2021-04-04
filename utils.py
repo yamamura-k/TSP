@@ -52,6 +52,6 @@ def calc_dist(tour, D):
     return sum(D[i - 1][j - 1] for i, j in zip(tour, tour[1:]+tour[:1]))
 
 if __name__=="__main__":
-    name, ncity, D, coord = read("./ALL_tsp/berlin52.tsp")
+    name, ncity, D, coord = read("./ALL_tsp/ulysses16.tsp")
     tour = list(range(1, ncity + 1))
     plot(tour, coord, figname=f"./{name}.png")

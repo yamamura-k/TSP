@@ -5,7 +5,7 @@ from tsp_two_opt import TwoOpt
 
 def argparser():
     parser = ArgumentParser()
-    parser.add_argument("-f", default="./ALL_tsp/berlin52.tsp")
+    parser.add_argument("-f", default="./ALL_tsp/ulysses16.tsp")
     return parser
 def main(filename):
     name, ncity, D, coord = read(filename)
