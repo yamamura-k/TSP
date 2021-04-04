@@ -10,14 +10,16 @@ def read(filename):
         for line in f:
             line = line.rstrip()
             line = line.split(":")
-            if "NAME" in line[0]:
+            for l in line:
+                l.replace(" ", "")
+            if line[0] == "NAME":
                 name = line[1]
             elif line[0] == "DIMENSION":
                 ncity = int(line[1])
             elif line[0] == "EDGE_WEIGHT_SECTION":
                 D = [ _line.split() for _line in f]
                 D = list(list(map(float, x))for x in D[:-1])
-            elif "EDGE_WEIGHT_TYPE" in line[0] and "EUC_2D" not in line[1]:
+            elif line[0] == "EDGE_WEIGHT_TYPE" and line[1] != "EUC_2D":
                 print("Cannot use this problem file.")
                 return None
             elif line[0] == "NODE_COORD_SECTION":
