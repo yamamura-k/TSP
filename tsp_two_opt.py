@@ -9,7 +9,7 @@ class TwoOpt:
     def initial_tour(self, strategy=None):
         if strategy:
             raise NotImplementedError
-        return list(range(self.ncity))
+        return list(range(1, self.ncity + 1))
 
     def swap_cost(self, i, j):
         if i > j:
