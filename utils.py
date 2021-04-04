@@ -12,7 +12,6 @@ def read(filename):
             line = line.split(":")
             for l in range(len(line)):
                 line[l] = line[l].replace(" ", "")
-            print(line)
             if line[0] == "NAME":
                 name = line[1]
             elif line[0] == "DIMENSION":
