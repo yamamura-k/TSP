@@ -47,7 +47,7 @@ def plot(tour, coord, figname="./tmp.png"):
     plt.savefig(figname)
 
 def calc_dist(tour, D):
-    return sum(D[i][j] for i, j in zip(tour, tour[1:]+tour[:1]))
+    return sum(D[i - 1][j - 1] for i, j in zip(tour, tour[1:]+tour[:1]))
 
 if __name__=="__main__":
     name, ncity, D, coord = read("./ALL_tsp/berlin52.tsp")
