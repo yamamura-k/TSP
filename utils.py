@@ -28,7 +28,7 @@ def read(filename):
                 print(line)
                 for _line in f:
                     if _line[:3] != "EOF":
-                        _line = list(map(int, _line.split()))
+                        _line = list(map(float, _line.split()))
                         coord[_line[0]] = _line[1:]
     if coord and not D:
         #D = cdist(coord.values(), coord.values())
