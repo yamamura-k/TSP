@@ -10,8 +10,9 @@ def read(filename):
         for line in f:
             line = line.rstrip()
             line = line.split(":")
-            for l in line:
-                l.replace(" ", "")
+            for l in range(len(line)):
+                line[l] = line[l].replace(" ", "")
+            print(line)
             if line[0] == "NAME":
                 name = line[1]
             elif line[0] == "DIMENSION":
