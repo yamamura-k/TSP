@@ -4,7 +4,7 @@ from tsp_ip import solve
 
 def argparser():
     parser = ArgumentParser()
-    parser.add_argument("-f", default="./ALL_tsp/att48.tsp")
+    parser.add_argument("-f", default="./ALL_tsp/berlin52.tsp")
     return parser
 def main(filename):
     name, ncity, D, coord = read(filename)
