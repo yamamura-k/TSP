@@ -2,6 +2,7 @@ from scipy.spatial.distance import cdist
 import numpy as np
 from math import sqrt
 import matplotlib.pyplot as plt
+from geopy.distance import geodesic
 
 def read(filename):
     coord = dict()
@@ -24,14 +25,24 @@ def read(filename):
                 _type = line[1]
             elif line[0] == "NODE_COORD_SECTION":
                 for _line in f:
-                    if _line[:3] != "EOF":
-                        _line = list(map(float, _line.split()))
+                    _line = _line.rstrip().split()
+
+                    if _line[0] != "EOF":
+                        _line = list(map(float, _line))
                         coord[_line[0]] = _line[1:]
                     else:
                         break
     if coord and not D:
         XY = np.array(list(coord.values()))
-        D = cdist(XY, XY)
+        if _type == "GEO":
+            for u in XY:
+                tmp = []
+                for v in XY:
+                    tmp.append(geodesic(u, v).m)
+                D.append(tmp)
+        else:
+            D = cdist(XY, XY)
+
         """
         for v in coord.values():
             tmp = []
