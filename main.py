@@ -10,8 +10,8 @@ def argparser():
 def main(filename):
     name, ncity, D, coord = read(filename)
     two_opt = TwoOpt(ncity, D)
-    tour = two_opt.solve_two_opt()
-    #tour = solve(ncity, D)
+    #tour = two_opt.solve_two_opt()
+    tour = solve(ncity, D)
     total_dist = calc_dist(tour, D)
     plot(tour, coord, figname=f"./{name}_{total_dist}.png")
 
