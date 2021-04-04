@@ -5,6 +5,7 @@ def solve(ncity: int, D: List[float]) -> List[int]:
     cities = list(range(ncity))
     x = pulp.LpVariable.dicts("x", (cities, cities), cat="Binary")# 都市iから都市jに向かうかを表す0-1変数
     u = pulp.LpVariable.dicts("u", cities, cat="Integer", lowBound=1, upBound=ncity-1)
+    u[0] = 1
     problem = pulp.LpProblem("TSP_IP")
     problem += pulp.lpSum(D[i][j]*x[i][j] for i in cities for j in cities)
     for i in cities:
