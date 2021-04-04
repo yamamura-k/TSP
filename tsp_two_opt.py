@@ -14,13 +14,13 @@ class TwoOpt:
     def swap_cost(self, i, j):
         if i > j:
             i, j = j, i
-        i_now = self.current_tour[i]
-        i_prev = self.current_tour[i - 1]
-        i_next = self.current_tour[(i + 1)%self.ncity]
+        i_now = self.current_tour[i] - 1
+        i_prev = self.current_tour[i - 1] - 1
+        i_next = self.current_tour[(i + 1)%self.ncity] - 1
 
-        j_now = self.current_tour[j]
-        j_prev = self.current_tour[j - 1]
-        j_next = self.current_tour[(j + 1)%self.ncity]
+        j_now = self.current_tour[j] - 1
+        j_prev = self.current_tour[j - 1] - 1
+        j_next = self.current_tour[(j + 1)%self.ncity] - 1
         
         current_cost = self.D[i_prev][i_now] + self.D[i_now][i_next] + self.D[j_prev][j_now] + self.D[j_now][j_next]
         new_cost = self.D[i_prev][j_now] + self.D[j_now][i_next] + self.D[j_prev][i_now] + self.D[i_now][j_next]
