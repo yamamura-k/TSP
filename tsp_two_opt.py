@@ -31,7 +31,7 @@ class TwoOpt:
             self.current_tour[i], self.current_tour[j] = self.current_tour[j], self.current_tour[i]
             self.best_tour = list(self.current_tour)
     
-    def solve_two_opt(self, MAXSTEP=1e4, strategy=None):
+    def solve_two_opt(self, MAXSTEP=1000, strategy=None):
         self.current_tour = self.initial_tour(strategy=strategy)
 
         for _ in range(MAXSTEP):
