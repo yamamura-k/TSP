@@ -5,17 +5,18 @@ def solve(ncity: int, D: List[float]) -> List[int]:
     cities = list(range(ncity))
     x = pulp.LpVariable.dicts("x", (cities, cities), cat="Binary")# 都市iから都市jに向かうかを表す0-1変数
     u = pulp.LpVariable.dicts("u", cities, cat="Integer", lowBound=1, upBound=ncity-1)
-    u[0] = 1
     problem = pulp.LpProblem("TSP_IP")
     problem += pulp.lpSum(D[i][j]*x[i][j] for i in cities for j in cities)
     for i in cities:
         problem += pulp.lpSum(x[i][j] for j in cities) == 1# 移動先は一つの都市
         problem += x[i][i] == 0# 同じ都市に止まることはNG
         for j in cities:# 部分巡回除去制約(MTZ条件において、w_i=0とした)
+            if i == j:
+                continue
             problem += u[i] - u[j] + ncity*x[i][j] <= ncity - 1
     for j in cities:
         problem += pulp.lpSum(x[i][j] for i in cities) == 1# 移動元は一つの都市
-    status = problem.solve(pulp.PULP_CBC_CMD(msg=1))
+    status = problem.solve(pulp.PULP_CPLEX_CMD(msg=1))
     tour = []
     for i in cities:
         for j in cities:
