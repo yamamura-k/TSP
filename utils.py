@@ -54,8 +54,8 @@ def read(filename):
 
 def plot(tour, coord, figname="./tmp.png"):
     fig = plt.figure()
-    x = [coord[i][0] for i in tour]
-    y = [coord[i][1] for i in tour]
+    x = [coord[i][0] for i in tour] + [coord[tour[0]][0]]
+    y = [coord[i][1] for i in tour] + [coord[tour[0]][1]]
     plt.plot(x, y, "-o")
     plt.savefig(figname)
 

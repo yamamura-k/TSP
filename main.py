@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 from utils import read, plot, calc_dist
-from tsp_ip import solve
+from tsp_ip import PulpIP
 from tsp_two_opt import TwoOpt
 
 def argparser():
@@ -10,8 +10,9 @@ def argparser():
 def main(filename):
     name, ncity, D, coord = read(filename)
     two_opt = TwoOpt(ncity, D)
-    #tour = two_opt.solve_two_opt()
-    tour = solve(ncity, D)
+    IP = PulpIP(ncity, D)
+    tour = two_opt.solve_two_opt()
+    tour = IP.solve(initial_tour=tour)
     total_dist = calc_dist(tour, D)
     plot(tour, coord, figname=f"./{name}_{total_dist}.png")
 
