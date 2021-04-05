@@ -2,7 +2,7 @@ import pulp
 from math import isclose
 from typing import List
 class PulpIP:
-    def __init__(self, ncity, D):
+    def __init__(self, ncity: int, D: List[float]) -> None:
         self.ncity = ncity
         self.D = D
         self.cities = list(range(1, ncity + 1))
@@ -23,15 +23,15 @@ class PulpIP:
         for i in self.cities[1:]:
             self.problem += self.u[i] >= 1
 
-    def solve(self, solver_name="cbc", initial_tour=None):
+    def solve(self, solver_name: str ="cbc", initial_tour: List[int] =None) -> List[int]:
         ws = False
         if initial_tour:
             self.warmStart(initial_tour)
             ws = True
         if solver_name == "cbc":
-            solver = pulp.PULP_CBC_CMD(msg=1, warmStart=ws)
+            solver = pulp.PULP_CBC_CMD(msg=0, warmStart=ws)
         elif solver_name == "cplex":
-            solver = pulp.CPLEX_CMD(msg=1)
+            solver = pulp.CPLEX_CMD(msg=0)
         status = self.problem.solve(solver)
         tour = list(self.cities)
         tour.sort(key=lambda x:self.u[x].value())
@@ -41,7 +41,7 @@ class PulpIP:
     
         return tour
     
-    def warmStart(self, tour):
+    def warmStart(self, tour: List[int]) -> None:
         index = dict()
         for i in range(self.ncity):
             index[tour[i]] = i

@@ -57,7 +57,10 @@ def plot(tour, coord, figname="./tmp.png"):
     x = [coord[i][0] for i in tour] + [coord[tour[0]][0]]
     y = [coord[i][1] for i in tour] + [coord[tour[0]][1]]
     plt.plot(x, y, "-o")
-    plt.savefig(figname)
+    if figname:
+        plt.savefig(figname)
+    else:
+        plt.show()
 
 def calc_dist(tour, D):
     return sum(D[i - 1][j - 1] for i, j in zip(tour, tour[1:]+tour[:1]))
