@@ -32,26 +32,30 @@ class TwoOpt:
             for j in range(1, self.ncity + 1):
                 if j in tour:
                     continue
-                if self.D[tour[-1]][j] < dist:
-                    dist = self.D[tour[-1]][j]
+                if self.D[tour[-1] - 1][j - 1] < dist:
+                    dist = self.D[tour[-1] - 1][j - 1]
                     nxt = j
             tour.append(nxt)
             obj += dist
-        obj += self.D[tour[-1]][tour[0]]
+        obj += self.D[tour[-1] - 1][tour[0] - 1]
         return tour, obj
 
     def swap_cost(self, i: int, j: int) -> float:
-        if i > j:
-            i, j = j, i
         i_now = self.current_tour[i] - 1
         i_prev = self.current_tour[i - 1] - 1
-        i_next = self.current_tour[(i + 1)%self.ncity] - 1
+        i_next = self.current_tour[(i + 1)%self.ncity] - 1 
 
         j_now = self.current_tour[j] - 1
         j_prev = self.current_tour[j - 1] - 1
         j_next = self.current_tour[(j + 1)%self.ncity] - 1
         
         current_cost = self.D[i_prev][i_now] + self.D[i_now][i_next] + self.D[j_prev][j_now] + self.D[j_now][j_next]
+        if j_now == i_next:
+            i_next = i_now
+            j_prev = j_now
+        if i_now == j_next:
+            j_next = j_now
+            i_prev = i_now
         new_cost = self.D[i_prev][j_now] + self.D[j_now][i_next] + self.D[j_prev][i_now] + self.D[i_now][j_next]
         return new_cost - current_cost
     

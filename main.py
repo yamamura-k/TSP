@@ -25,12 +25,12 @@ def main(filename):
     tour = two_opt.solve_simulated_annealing()
     total_dist = calc_dist(tour, D)
     print("simulated annealing", total_dist)
-
+    """
     IP = PulpIP(ncity, D)
     tour = IP.solve()
     total_dist = calc_dist(tour, D)
     print("ip", total_dist)
-
+    """
     #plot(tour, coord, figname=f"./{name}_{total_dist}.png")
 
 if __name__=="__main__":
