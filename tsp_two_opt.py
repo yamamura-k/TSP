@@ -86,4 +86,5 @@ class TwoOpt:
             cand.solve_two_opt(MAXSTEP=MAXSTEP, strategy=strategy)
             if self.best_obj > cand.best_obj:
                 self.best_tour = cand.best_tour
+                self.best_obj = cand.best_obj
         return self.best_tour
