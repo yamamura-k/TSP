@@ -29,7 +29,7 @@ def read(filename):
 
                     if _line[0] != "EOF":
                         _line = list(map(float, _line))
-                        coord[_line[0]] = _line[1:]
+                        coord[_line[0] - 1] = _line[1:]
                     else:
                         break
     if coord and not D:
@@ -63,7 +63,7 @@ def plot(tour, coord, figname="./tmp.png"):
         plt.show()
 
 def calc_dist(tour, D):
-    return sum(D[i - 1][j - 1] for i, j in zip(tour, tour[1:]+tour[:1]))
+    return sum(D[i][j] for i, j in zip(tour, tour[1:]+tour[:1]))
 
 if __name__=="__main__":
     name, ncity, D, coord = read("./ALL_tsp/ulysses16.tsp")

@@ -5,11 +5,11 @@ class PulpIP:
     def __init__(self, ncity: int, D: List[float]) -> None:
         self.ncity = ncity
         self.D = D
-        self.cities = list(range(1, ncity + 1))
+        self.cities = list(range(ncity))
         self.x = pulp.LpVariable.dicts("x", (self.cities, self.cities), cat="Binary")# 都市iから都市jに向かうかを表す0-1変数
         self.u = pulp.LpVariable.dicts("u", self.cities, cat="Integer", lowBound=0, upBound=ncity-1)# 訪問順序を表す
         self.problem = pulp.LpProblem("TSP_IP")
-        self.problem += pulp.lpSum(self.D[i - 1][j - 1]*self.x[i][j] for i in self.cities for j in self.cities)
+        self.problem += pulp.lpSum(self.D[i][j]*self.x[i][j] for i in self.cities for j in self.cities)
         for i in self.cities:
             self.problem += pulp.lpSum(self.x[i][j] for j in self.cities) == 1# 移動先は一つの都市
             self.problem += pulp.lpSum(self.x[j][i] for j in self.cities) == 1# 移動元は一つの都市

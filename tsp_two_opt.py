@@ -13,14 +13,15 @@ class TwoOpt:
         if strategy == "greedy":
             return self._greedy()
         elif strategy == "greedy_random":
-            return self._greedy(random.randint(1, self.ncity + 1))
+            return self._greedy(random.randint(self.ncity))
         elif strategy == "random":
-            tour = random.shuffle(list(range(1, self.ncity + 1)))
+            tour = list(range(self.ncity))
+            random.shuffle(tour)
             return tour, self.calc_score(tour)
         elif strategy == "convexhull":
             raise NotImplementedError
         else:
-            tour = list(range(1, self.ncity + 1))
+            tour = list(range(self.ncity))
             return tour, self.calc_score(tour)
     
     def _greedy(self, s=1):
@@ -29,25 +30,25 @@ class TwoOpt:
         for _ in range(self.ncity - 1):
             dist = float('inf')
             nxt = None
-            for j in range(1, self.ncity + 1):
+            for j in range(self.ncity):
                 if j in tour:
                     continue
-                if self.D[tour[-1] - 1][j - 1] < dist:
-                    dist = self.D[tour[-1] - 1][j - 1]
+                if self.D[tour[-1]][j] < dist:
+                    dist = self.D[tour[-1]][j]
                     nxt = j
             tour.append(nxt)
             obj += dist
-        obj += self.D[tour[-1] - 1][tour[0] - 1]
+        obj += self.D[tour[-1]][tour[0]]
         return tour, obj
 
     def swap_cost(self, i: int, j: int) -> float:
-        i_now = self.current_tour[i] - 1
-        i_prev = self.current_tour[i - 1] - 1
-        i_next = self.current_tour[(i + 1)%self.ncity] - 1 
+        i_now = self.current_tour[i]
+        i_prev = self.current_tour[i - 1]
+        i_next = self.current_tour[(i + 1)%self.ncity]
 
-        j_now = self.current_tour[j] - 1
-        j_prev = self.current_tour[j - 1] - 1
-        j_next = self.current_tour[(j + 1)%self.ncity] - 1
+        j_now = self.current_tour[j]
+        j_prev = self.current_tour[j - 1]
+        j_next = self.current_tour[(j + 1)%self.ncity]
         
         current_cost = self.D[i_prev][i_now] + self.D[i_now][i_next] + self.D[j_prev][j_now] + self.D[j_now][j_next]
         if j_now == i_next:
@@ -68,7 +69,7 @@ class TwoOpt:
             self.best_obj = self.current_obj
     
     def calc_score(self, tour):
-        return sum(self.D[i - 1][j - 1] for i, j in zip(tour, tour[1:] + tour[:1]))
+        return sum(self.D[i][j] for i, j in zip(tour, tour[1:] + tour[:1]))
     
     def solve_two_opt(self, MAXSTEP: int =100000, strategy: str=None) -> List[int]:
         self.current_tour, self.current_obj = self.initial_tour(strategy=strategy)
