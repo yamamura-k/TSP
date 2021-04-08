@@ -1,0 +1,7 @@
+pulp
+optuna
+numpy
+scipy
+matplotlib
+geopy
+deap
