@@ -2,6 +2,11 @@ from math import sqrt
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+"""reference
+https://arxiv.org/pdf/1611.09940.pdf
+https://arxiv.org/pdf/1511.06391.pdf
+https://arxiv.org/pdf/1506.03134.pdf
+"""
 class Encoder(nn.Module):
     def __init__(self, input_dim, emb_dim):
         super(Encoder, self).__init__()
@@ -25,12 +30,12 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
 
 class Attention(nn.Module):
-    """sequence to sequence に似てる
+    """base class of pointer & glimpse
     """
     def __init__(self, layer_dim, C=10, tanh_flg=False):
         super(Attention, self)__init__()
-        self.proj_q = nn.Linear(layer_dim, layer_dim)
-        self.proj_ref = nn.Linear(layer_dim, layer_dim)
+        self.proj_q = nn.Linear(layer_dim, layer_dim)# hidden vector of decoder
+        self.proj_ref = nn.Linear(layer_dim, layer_dim)# hidden vector of encoder
         self.C = C
         self.tanh = nn.Tanh()
         self.tanh_flg = tanh_flg
