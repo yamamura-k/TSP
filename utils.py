@@ -65,6 +65,7 @@ def plot(tour, coord, figname="./tmp.png"):
 def calc_dist(tour, D):
     return sum(D[i][j] for i, j in zip(tour, tour[1:]+tour[:1]))
 
+
 if __name__=="__main__":
     name, ncity, D, coord = read("./ALL_tsp/ulysses16.tsp")
     tour = list(range(1, ncity + 1))

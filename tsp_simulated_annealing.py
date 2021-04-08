@@ -1,4 +1,5 @@
 import random
+import optuna
 import numpy as np
 from typing import List, Tuple
 from tsp_two_opt import TwoOpt
@@ -17,14 +18,14 @@ class TSPSimAnneal(TwoOpt):
             self.current_tour[i], self.current_tour[j] = self.current_tour[j], self.current_tour[i]
             self.current_obj += _swap_cost
     
-    def solve_simulated_annealing(self, T=1e5, C=0.995, MAXSTEP: int =100, strategy: str=None, _type: str ="inhom") -> List[int]:
+    def solve_simulated_annealing(self, T: float =1e5, T_final: float =1e2, C: float =0.995, MAXSTEP: int =100, strategy: str=None, _type: str ="inhom") -> List[int]:
         self.current_tour, self.current_obj = self.initial_tour(strategy=strategy)
         self.best_tour, self.best_obj = list(self.current_tour), self.current_obj
 
         # homogeneous algorithm
         # 収束が遅い
         if _type == "hom":
-            while T > 100:
+            while T > T_final:
                 for _ in range(MAXSTEP):
                     i, j = random.randint(0, self.ncity - 1), random.randint(0, self.ncity - 1)
                     self.swap(i, j, T)
@@ -35,7 +36,7 @@ class TSPSimAnneal(TwoOpt):
                 
         # inhomogeneous algorithm
         elif _type == "inhom":
-            while T > 100:
+            while T > T_final:
                 i, j = random.randint(0, self.ncity - 1), random.randint(0, self.ncity - 1)
                 self.swap(i, j, T)
                 if self.current_obj < self.best_obj:
@@ -45,3 +46,16 @@ class TSPSimAnneal(TwoOpt):
         else:
             raise NotImplementedError
         return self.best_tour
+
+    def _objective(self, trial: object) -> float:
+        T = trial.suggest_discrete_uniform("T", 1e3, 1e10, 10)
+        T_final = trial.suggest_uniform("T_final", 0, 1e3)
+        C = trial.suggest_uniform("C", 0.5, 1.0)
+        strategy = trial.suggest_categorical("strategy", ["random", "greedy", "greedy_random", ""])
+        self.solve_simulated_annealing(T=T, T_final=T_final, C=C, strategy=strategy, _type="inhom")
+        return self.best_obj
+    
+    def opt_hypara(self, ntrials: int =3000, timeout: int =300) -> object:
+        study = optuna.create_study(direction="minimize")
+        study.optimize(self._objective, n_trials=ntrials, timeout=timeout)
+        return study.best_trial

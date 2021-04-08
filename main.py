@@ -12,14 +12,14 @@ def argparser():
     parser.add_argument("-f", default="./ALL_tsp/ulysses16.tsp")
     return parser
 
-def main(filename):
+def test1(filename):
     name, ncity, D, coord = read(filename)
 
     two_opt = TwoOpt(ncity, D)
     two_opt_multi = TwoOpt(ncity, D)
     simanneal = TSPSimAnneal(ncity, D)
     ga = TSPGA(ncity, D)
-    IP = PulpIP(ncity, D)
+    IP = PulpIP(ncity, D, MTZ_level=2)
 
     ts = time()
     tour = two_opt.solve_two_opt(strategy="random")
@@ -51,10 +51,19 @@ def main(filename):
     
     #plot(tour, coord, figname=f"./{name}_{total_dist}.png")
 
+def test2(filename):
+    name, ncity, D, coord = read(filename)
+    simanneal = TSPSimAnneal(ncity, D)
+    best_trial = simanneal.opt_hypara()
+    print("total cost", best_trial.value)
+    for key, val in best_trial.params.items():
+        print(key, val)
+
 if __name__=="__main__":
     parser = argparser()
     args = parser.parse_args()
-    main(args.f)
+    #test1(args.f)
+    test2(args.f)
 # ToDo
 """
 + optunaによるパラメータチューニングの実装

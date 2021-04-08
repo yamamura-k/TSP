@@ -9,11 +9,11 @@ class TwoOpt:
         self.current_obj = None
         self.best_obj = None
 
-    def initial_tour(self, strategy: str =None) -> Tuple[List[int], float]:
+    def initial_tour(self, strategy: str ="") -> Tuple[List[int], float]:
         if strategy == "greedy":
             return self._greedy()
         elif strategy == "greedy_random":
-            return self._greedy(random.randint(self.ncity))
+            return self._greedy(random.randint(0, self.ncity - 1))
         elif strategy == "random":
             tour = list(range(self.ncity))
             random.shuffle(tour)
@@ -24,7 +24,7 @@ class TwoOpt:
             tour = list(range(self.ncity))
             return tour, self.calc_score(tour)
     
-    def _greedy(self, s=1):
+    def _greedy(self, s: int =0) -> Tuple[List[int], float]:
         tour = [s]
         obj = 0
         for _ in range(self.ncity - 1):
@@ -68,7 +68,7 @@ class TwoOpt:
             self.best_tour = list(self.current_tour)
             self.best_obj = self.current_obj
     
-    def calc_score(self, tour):
+    def calc_score(self, tour: List[int]) -> float:
         return sum(self.D[i][j] for i, j in zip(tour, tour[1:] + tour[:1]))
     
     def solve_two_opt(self, MAXSTEP: int =100000, strategy: str=None) -> List[int]:
@@ -80,7 +80,7 @@ class TwoOpt:
         
         return self.best_tour
     
-    def solve_multi_start_two_opt(self, num_start_point: int, MAXSTEP: int =10000, strategy: str=None):
+    def solve_multi_start_two_opt(self, num_start_point: int, MAXSTEP: int =10000, strategy: str=None) -> List[int]:
         self.best_tour = self.solve_two_opt(MAXSTEP=MAXSTEP, strategy=strategy)
         for _ in range(num_start_point - 1):
             cand = TwoOpt(self.ncity, self.D)

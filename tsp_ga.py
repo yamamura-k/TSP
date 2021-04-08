@@ -1,6 +1,6 @@
 from tsp_two_opt import TwoOpt
 from deap import algorithms, base, creator, tools
-from typing import List
+from typing import List, Tuple
 class TSPGA(TwoOpt):
     def __init__(self, ncity: int, D: List[float], indpb: float =0.05, toursize: int =3, npop: int =300) -> None:
         super().__init__(ncity, D)
@@ -21,10 +21,10 @@ class TSPGA(TwoOpt):
     def initial_tour_ga(self, strategy: str =None) -> list:
         return self.initial_tour(strategy=strategy)[0]
 
-    def _eval(self, tour):
+    def _eval(self, tour: List[int]) -> Tuple[float]:
         return self.calc_score(tour),
     
-    def solve(self, cxpb: float =0.7, mutpb: float =0.2, ngen: int =40, hof: int=1):
+    def solve(self, cxpb: float =0.7, mutpb: float =0.2, ngen: int =40, hof: int=1) -> object:
         if hof:
             hof = tools.HallOfFame(hof)
         algorithms.eaSimple(self.pop, self.toolbox, cxpb, mutpb, ngen, halloffame=hof, verbose=False)

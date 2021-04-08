@@ -2,7 +2,7 @@ import pulp
 from math import isclose
 from typing import List
 class PulpIP:
-    def __init__(self, ncity: int, D: List[float]) -> None:
+    def __init__(self, ncity: int, D: List[float], MTZ_level: int =0) -> None:
         self.ncity = ncity
         self.D = D
         self.cities = list(range(ncity))
@@ -14,14 +14,31 @@ class PulpIP:
             self.problem += pulp.lpSum(self.x[i][j] for j in self.cities) == 1# 移動先は一つの都市
             self.problem += pulp.lpSum(self.x[j][i] for j in self.cities) == 1# 移動元は一つの都市
             self.problem += self.x[i][i] == 0# 同じ都市に止まることはNG
-            for j in self.cities[1:]:# 部分巡回除去制約(MTZ条件)
-                if i == j:
-                    continue
-                self.problem += self.u[i] - self.u[j] + ncity*self.x[i][j] <= ncity - 1
+        self.set_MTZ(level=MTZ_level)
 
         self.problem += self.u[self.cities[0]] == 0
         for i in self.cities[1:]:
             self.problem += self.u[i] >= 1
+    
+    def set_MTZ(self, level: int) -> None:
+        if level == 0:
+            for i in self.cities:
+                for j in self.cities[1:]:# 部分巡回除去制約(MTZ条件)
+                    if i == j:
+                        continue
+                    self.problem += self.u[i] - self.u[j] + self.ncity*self.x[i][j] <= self.ncity - 1
+        elif level >= 1:
+            for i in self.cities[1:]:
+                for j in self.cities[1:]:# 部分巡回除去制約ちょっと強め(MTZ条件)
+                    if i == j:
+                        continue
+                    # self.problem += self.u[i] + 1 - (self.ncity - 1)*(1 - self.x[i][j]) + (self.ncity - 3)*self.x[j][i] <= self.u[j]
+                    self.problem += self.u[i] - self.u[j] + (self.ncity - 1)*self.x[i][j] + (self.ncity - 3)*self.x[j][i] <= self.ncity - 2
+            if level >= 2:# 部分巡回除去制約、強め(MTZ条件)
+                for i in self.cities[1:]:
+                    self.problem += 2 - self.x[0][i] + (self.ncity - 3)*self.x[i][0] <= self.u[i]
+                    self.problem += self.u[i] <= (self.ncity - 1) - (1 - self.x[i][0]) - (self.ncity - 3)*self.x[0][i]
+
 
     def solve(self, solver_name: str ="cbc", initial_tour: List[int] =None) -> List[int]:
         ws = False
