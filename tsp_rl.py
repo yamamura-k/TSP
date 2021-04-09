@@ -26,8 +26,31 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, emb_dim, out_dim, max_len, ):
+    def __init__(self, emb_dim, out_dim, max_len, C, tanh_flg):
         super(Decoder, self).__init__()
+            terminating_symbol,
+            decode_type,
+            n_glimpses=1,
+        super(Decoder, self).__init__()
+        
+        self.embedding_dim = embedding_dim
+        self.hidden_dim = hidden_dim
+        self.n_glimpses = n_glimpses
+        self.max_length = max_length
+        self.terminating_symbol = terminating_symbol 
+        self.decode_type = decode_type
+
+        self.input_weights = nn.Linear(emb_dim, 4 * out_dim)
+        self.out_weights = nn.Linear(out_dim, 4 * out_dim)
+
+        self.pointer = Attention(out_dim, tanh_flg=tanh_flg, C=C)
+        self.glimpse = Attention(out_dim, use_tanh=False)
+        self.outlayer = nn.Softmax()
+        self.recurence = nn.LSTMCell(out_dim)
+        self.mask = None
+
+    def forward(self, inputs, embbed_inputs, hidden, encoder_outputs):
+        pass
 
 class Attention(nn.Module):
     """base class of pointer & glimpse
