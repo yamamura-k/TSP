@@ -1,6 +1,7 @@
 from math import sqrt
 import torch
 import torch.nn as nn
+import torch.functional as F
 from torch.autograd import Variable
 """reference
 https://arxiv.org/pdf/1611.09940.pdf
@@ -50,7 +51,61 @@ class Decoder(nn.Module):
         self.mask = None
 
     def forward(self, inputs, embbed_inputs, hidden, encoder_outputs):
-        pass
+    
+        batch_size = context.size(1)
+        outputs = []
+        selections = []
+        steps = range(self.max_length)  # or until terminating symbol ?
+        inputs = []
+        idxs = None
+        mask = None
+       
+        for i in steps:
+            output, hidden = self.recurence(decoder_input, hidden)
+            for i in range(self.n_glimpses):
+                ref, logits = self.glimpse(output, encoder_outputs)
+                logits, logit_mask = self.apply_mask_to_logits(step, logits, logit_mask, prev_idxs)
+                g_l = torch.bmm(ref, self.sm(logits).unsqueeze(2)).squeeze(2) 
+            _, logits = self.pointer(g_l, encoder_outputs)
+            
+            logits, logit_mask = self.apply_mask_to_logits(step, logits, logit_mask, prev_idxs)
+            probs = self.sm(logits)
+            decoder_input, idxs = self.decode(
+                probs,
+                embedded_inputs,
+                selections)
+            inputs.append(decoder_input) 
+        
+            outputs.append(probs)
+            selections.append(idxs)
+        return (outputs, selections), hidden
+
+    def apply_mask_to_logits(self, step, logits, mask, prev_idxs):    
+        if mask is None:
+            mask = torch.zeros(logits.size()).byte()
+            if self.use_cuda:
+                mask = mask.cuda()
+    
+        maskk = mask.clone()
+        if prev_idxs is not None:
+            maskk[[x for x in range(logits.size(0))],
+                    prev_idxs.data] = 1
+            logits[maskk] = -np.inf
+        return logits, maskk
+
+    def decode(self, probs, embedded_inputs, selections):
+        batch_size = probs.size(0)
+        idxs = probs.multinomial().squeeze(1)
+
+        for old_idxs in selections:
+            if old_idxs.eq(idxs).data.any():
+                print(' [!] resampling due to race condition')
+                idxs = probs.multinomial().squeeze(1)
+                break
+
+        sels = embedded_inputs[idxs.data, [i for i in range(batch_size)], :] 
+        return sels, idxs
+
 
 class Attention(nn.Module):
     """base class of pointer & glimpse
@@ -76,3 +131,8 @@ class Attention(nn.Module):
         u = torch.bmm(v_view, self.tanh(q_expand + e)).squeeze(1)# squeezeの意味を調べよう。
         logits = C*self.tanh(u) if self.tanh_flg else u
         return e, logits
+
+
+class PointerNetwork(nn.Module):
+    def __init__(self):
+        super(PointerNetwork, self).__init__()
