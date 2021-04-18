@@ -1,6 +1,7 @@
 from tsp_two_opt import TwoOpt
 from deap import algorithms, base, creator, tools
 from typing import List, Tuple
+import optuna
 class TSPGA(TwoOpt):
     def __init__(self, ncity: int, D: List[float], indpb: float =0.05, toursize: int =3, npop: int =300) -> None:
         super().__init__(ncity, D)
@@ -30,3 +31,14 @@ class TSPGA(TwoOpt):
         algorithms.eaSimple(self.pop, self.toolbox, cxpb, mutpb, ngen, halloffame=hof, verbose=False)
 
         return hof[0]
+
+    def _objective(self, trial: object) -> float:
+        cxpb = trial.suggest_uniform("cxpb", 1e-3, 1.0)
+        mutpb = trial.suggest_uniform("mutpb", 1e-3, 1.0)
+        ngen = trial.suggest_int("ngen", 40, 100)
+        return self.calc_score(self.solve(cxpb=cxpb, mutpb=mutpb, ngen=ngen))
+    
+    def opt_hypara(self, ntrials: int =1000, timeout: int =300) -> object:
+        study = optuna.create_study(direction="minimize")
+        study.optimize(self._objective, n_trials=ntrials, timeout=timeout)
+        return study.best_trial

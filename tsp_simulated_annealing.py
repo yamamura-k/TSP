@@ -55,7 +55,7 @@ class TSPSimAnneal(TwoOpt):
         self.solve_simulated_annealing(T=T, T_final=T_final, C=C, strategy=strategy, _type="inhom")
         return self.best_obj
     
-    def opt_hypara(self, ntrials: int =3000, timeout: int =300) -> object:
+    def opt_hypara(self, ntrials: int =1000, timeout: int =300) -> object:
         study = optuna.create_study(direction="minimize")
         study.optimize(self._objective, n_trials=ntrials, timeout=timeout)
         return study.best_trial
