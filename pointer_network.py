@@ -18,10 +18,11 @@ Pointer Networks(https://arxiv.org/pdf/1506.03134.pdf)
 class Encoder(nn.Module):
     def __init__(self, embedding_dim, hidden_dim, n_layers, dropout, bidirectional):
         super(Encoder, self).__init__()
-        self.hidden_dim = hidden_dim
-        self.n_layers = n_layers*(1+bidirectional)
+        self.hidden_dim = hidden_dim//2 if bidirectional else hidden_dim
+        self.n_layers = n_layers*2 if bidirectional else n_layers
+        
         self.bidir = bidirectional
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, n_layers, dropout=dropout, bidirectional=bidirectional)
+        self.lstm = nn.LSTM(embedding_dim, self.hidden_dim, n_layers, dropout=dropout, bidirectional=bidirectional)
 
         self.h0 = Parameter(torch.zeros(1), requires_grad=False)
         self.c0 = Parameter(torch.zeros(1), requires_grad=False)
@@ -46,8 +47,8 @@ class Attention(nn.Module):
         self.hidden_dim = hidden_dim
 
         self.input_lin = nn.Linear(input_dim, hidden_dim)
-        self.context_lin = nn.Linear(input_dim, hidden_dim)# 論文はこっちで実装
-        #self.context_lin = nn.Conv1d(input_dim, hidden_dim, 1, 1)# number of input channel, number of output channel, kernel size, stlide
+        # self.context_lin = nn.Linear(input_dim, hidden_dim)# 論文はこっちだけど、これにすると途中で行列サイズが合わなくなる
+        self.context_lin = nn.Conv1d(input_dim, hidden_dim, 1, 1)# number of input channel, number of output channel, kernel size, stlide
         self.V = Parameter(torch.FloatTensor(hidden_dim), requires_grad=True)
         self._inf = Parameter(torch.FloatTensor([float('inf')]), requires_grad=False)
 
@@ -73,29 +74,30 @@ class Attention(nn.Module):
         
         alpha = self.softmax(attention)
 
-        hidden_state = torch.bmm(_context, alpha.unsqueeze(2)).unsqueeze(2)
+        hidden_state = torch.bmm(_context, alpha.unsqueeze(2)).squeeze(2)
 
         return hidden_state, alpha
     
     def init_inf(self, mask_size):
-        self.inf = self_inf.unsqueeze(1).expand(*mask_size)
+        self.inf = self._inf.unsqueeze(1).expand(*mask_size)
 
 
 class Decoder(nn.Module):
     def __init__(self, embedding_dim, hidden_dim):
         super(Decoder, self).__init__()
         self.embedding_dim = embedding_dim
+
         self.hidden_dim = hidden_dim
 
         self.input2hidden = nn.Linear(embedding_dim, 4*hidden_dim)
         self.hidden2hidden = nn.Linear(hidden_dim, 4*hidden_dim)
-        self.hidden2out = nn.Linear(2*hidden_dim, hidden_dim)
+        self.hidden2out = nn.Linear(hidden_dim*2, hidden_dim)
         self.attention = Attention(hidden_dim, hidden_dim)
 
         self.mask = Parameter(torch.ones(1), requires_grad=False)
         self.runner = Parameter(torch.zeros(1), requires_grad=False)
     
-    def forward(self, embedded_inputs, decoder_inputs, hidden, context):
+    def forward(self, embedded_inputs, decoder_input, hidden, context):
         batch_size = embedded_inputs.size(0)
         input_length = embedded_inputs.size(1)
 
@@ -112,21 +114,21 @@ class Decoder(nn.Module):
 
         def step(x, hidden):
             # 通常のLSTM
-            r, c = hidden
-
+            h, c = hidden
             gates = self.input2hidden(x) + self.hidden2hidden(h)
+
             _input, forget, cell, out = gates.chunk(4, 1)
             
             _input = F.sigmoid(_input)
             forget = F.sigmoid(forget)
-            cell = F.tanh(cell)
+            cell = torch.tanh(cell)
             out = F.sigmoid(out)
 
             context_state = forget*c + _input*cell
-            hidden_state = out*F.tanh(context_state)
+            hidden_state = out*torch.tanh(context_state)
 
-            hidden_t, output = self.attention(hidden_state, context, torch.eq(mask, 0))
-            hidden_t = F.tanh(self.hidden2out(torch.cat((hidden_t, hidden_state), 1)))
+            hidden_t, output = self.attention(hidden_state, context, torch.eq(selection_mask, 0))
+            hidden_t = torch.tanh(self.hidden2out(torch.cat((hidden_t, hidden_state), 1)))
 
             return hidden_t, context_state, output
         
@@ -134,12 +136,12 @@ class Decoder(nn.Module):
             h_t, c_t, outs = step(decoder_input, hidden)
             hidden = (h_t, c_t)
 
-            masked_outputs = outs*mask
+            masked_outputs = outs*selection_mask
 
             max_probs, indices = masked_outputs.max(1)
-            one_hot_pointers = (runner == indices.umsqueeze(1).expand(-1, outs.size()[1])).float()
+            one_hot_pointers = (runner == indices.unsqueeze(1).expand(-1, outs.size()[1])).float()
 
-            mask = mask*(1 - one_hot_pointers)
+            selection_mask = selection_mask*(1 - one_hot_pointers)
 
             embedding_mask = one_hot_pointers.unsqueeze(2).expand(-1, -1, self.embedding_dim).byte()
             decoder_input = embedded_inputs[embedding_mask.data].view(batch_size, self.embedding_dim)
@@ -169,20 +171,22 @@ class PtrNet(nn.Module):
     def forward(self, inputs):
         batch_size = inputs.size(0)
         input_length = inputs.size(1)
+        breakpoint()
 
         decoder_input0 = self.decoder_input0.unsqueeze(0).expand(batch_size, -1)
 
         inputs = inputs.view(batch_size*input_length, -1)
+        
         embedded_inputs = self.embedding(inputs).view(batch_size, input_length, -1)
 
         encoder_hidden0 = self.encoder.init_hidden(embedded_inputs)
         encoder_outputs, encoder_hidden = self.encoder(embedded_inputs, encoder_hidden0)
 
         if self.bidir:
-            decoder_hidden0 = (torch.cat(encoder_hidden[0][-2:], dim=-1), torch.cat(encoder_hidden[1][-2:], dim=-1))
+            decoder_hidden0 = (torch.cat(tuple(encoder_hidden[0][-2:]), dim=-1), torch.cat(tuple(encoder_hidden[1][-2:]), dim=-1))
         else:
             decoder_hidden0 = (encoder_hidden[0][-1], encoder_hidden[1][-1])
-        
+
         (outputs, pointers), decoder_hidden = self.decoder(embedded_inputs, decoder_input0, decoder_hidden0, encoder_outputs)
 
         return outputs, pointers

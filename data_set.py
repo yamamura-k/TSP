@@ -7,12 +7,10 @@ from scipy.spatial.distance import cdist
 from tsp_ip import PulpIP
 
 def wrap_TSP_IP(coordinates):
-    
     ncity = len(coordinates)
     D = cdist(coordinates, coordinates)
     solver = PulpIP(ncity, D, MTZ_level=2)
     solution = solver.solve()
-
     return np.asarray(solution)
 
 class TSPDataset(Dataset):
@@ -28,7 +26,7 @@ class TSPDataset(Dataset):
 
     def __getitem__(self, idx):
         tensor = torch.from_numpy(self.data['Coordinates'][idx]).float()
-        solution = torch.from_numpy(self.data['Solutions'][idx]).long() if self.solve else None
+        solution = torch.from_numpy(self.data['Solutions'][idx]).long()
         sample = {'coordinate': tensor, "solution": solution}
         return sample
     
@@ -47,7 +45,7 @@ class TSPDataset(Dataset):
                 solutions_iter.set_description(f"Solved {i+1}/{len(coordinates)}")
                 solutions.append(self.solver(coord))
         else:
-            solutions = None
+            solutions = np.zeros((len(coordinates), 2))
         data = {"Coordinates": coordinates, "Solutions": solutions}
         
         return data
