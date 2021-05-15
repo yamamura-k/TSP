@@ -65,6 +65,14 @@ def plot(tour, coord, figname="./tmp.png"):
         plt.savefig(figname)
     else:
         plt.show()
+    
+def plot_loss(losses):
+    fig, ax = plt.subplots()
+    ax.plot(losses, "--o")
+    ax.set_title("cross entropy loss")
+    ax.set_xlabel("number of epoch")
+    ax.set_ylabel("loss")
+    return fig, ax
 
 def calc_dist(tour, D):
     return sum(D[i][j] for i, j in zip(tour, tour[1:]+tour[:1]))
