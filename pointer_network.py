@@ -171,7 +171,6 @@ class PtrNet(nn.Module):
     def forward(self, inputs):
         batch_size = inputs.size(0)
         input_length = inputs.size(1)
-        breakpoint()
 
         decoder_input0 = self.decoder_input0.unsqueeze(0).expand(batch_size, -1)
 

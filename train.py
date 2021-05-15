@@ -185,5 +185,9 @@ if __name__=="__main__":
         losses = train_PtrNet(params)
     else:
         losses = train_NeuralCombOptRL(params)
-    # fig, ax = plot_loss(losses)
-    # fig.show()
+     
+    breakpoint()
+    fig, ax = plot_loss(losses)
+    fig.show()
+
+    breakpoint()
