@@ -22,16 +22,17 @@ class NeuralCombOptRL(nn.Module):
     
     def forward(self, inputs):
         batch_size = inputs.size(0)
-        input_dim = inputs.size(1)
-        sourceL = inputs.size(2)
-
+        input_dim = inputs.size(2)
+        sourceL = inputs.size(1)
+        
         embedding = self.embedding.repeat(batch_size, 1, 1)
         embedded_inputs = []
         inpts = inputs.unsqueeze(1)
 
         for i in range(sourceL):
-            embedded_inputs = torch.cat(embedded_inputs).view(sourceL, batch_size, embedding.size(2))
-        
+            embedded_inputs.append(torch.bmm(inpts[:, :, :, i].float(),embedding).squeeze(1))
+
+        embedded_inputs = torch.cat(embedded_inputs).view(batch_size, sourceL, embedding.size(2))
         probs_, action_idxs = self.actor_net(embedded_inputs)
 
         actions = []
