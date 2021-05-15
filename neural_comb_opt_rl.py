@@ -4,7 +4,12 @@ from torch.nn import Parameter
 import torch.nn.functional as F
 
 from pointer_network import PtrNet
-
+# 元論文： https://arxiv.org/pdf/1611.09940.pdf
+# TODO
+# pointer networkの実装
+# glimpseの実装
+# 対応して、pointer network中のdecoderをこれ用にカスタマイズする必要あり
+# critic networkの実装
 class NeuralCombOptRL(nn.Module):
     def __init__(self, input_dim, embedding_dim, hidden_dim, num_lstm_layers, dropout, objective, bidirectional=False, use_cuda=False, is_train=False):
         super(NeuralCombOptRL, self).__init__()
