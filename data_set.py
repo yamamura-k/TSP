@@ -8,10 +8,31 @@ from tsp_ip import PulpIP
 
 def wrap_TSP_IP(coordinates):
     ncity = len(coordinates)
+
+    if pow(2, ncity)*pow(ncity, 2) < 1e5:
+        print("Solve with dp.")
+        return tsp_dp_opt(coordinates)
+        
     D = cdist(coordinates, coordinates)
     solver = PulpIP(ncity, D, MTZ_level=2)
     solution = solver.solve()
     return np.asarray(solution)
+
+def tsp_dp_opt(coordinates):
+    D = cdist(coordinates, coordinates)
+    # Initial value - just distance from 0 to every other point + keep the track of edges
+    A = {(frozenset([0, idx+1]), idx+1): (dist, [0, idx+1]) for idx, dist in enumerate(D[0][1:])}
+    cnt = len(coordinates)
+    for m in range(2, cnt):
+        B = {}
+        for S in [frozenset(C) | {0} for C in itertools.combinations(range(1, cnt), m)]:
+            for j in S - {0}:
+                # This will use 0th index of tuple for ordering, the same as if key=itemgetter(0) used
+                B[(S, j)] = min([(A[(S-{j}, k)][0] + D[k][j], A[(S-{j}, k)][1] + [j])
+                                 for k in S if k != 0 and k != j])
+        A = B
+    res = min([(A[d][0] + D[0][d[1]], A[d][1]) for d in iter(A)])
+    return np.asarray(res[1])
 
 class TSPDataset(Dataset):
     def __init__(self, data_size, seq_len, solver=wrap_TSP_IP, solve=True):
