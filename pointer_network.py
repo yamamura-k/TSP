@@ -50,7 +50,7 @@ class Attention(nn.Module):
         # self.context_lin = nn.Linear(input_dim, hidden_dim)# 論文はこっちだけど、これにすると途中で行列サイズが合わなくなる
         self.context_lin = nn.Conv1d(input_dim, hidden_dim, 1, 1)# number of input channel, number of output channel, kernel size, stlide
         self.V = Parameter(torch.FloatTensor(hidden_dim), requires_grad=True)
-        self._inf = Parameter(torch.FloatTensor([float('inf')]), requires_grad=False)
+        self._inf = Parameter(torch.FloatTensor([float('-inf')]), requires_grad=False)
 
         self.tanh = nn.Tanh()
         self.softmax = nn.Softmax()

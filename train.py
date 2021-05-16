@@ -89,7 +89,7 @@ def train_PtrNet(params, num_workers=0):
         iterator = tqdm(dataloader, unit="Batch")
 
         for batch_i, sample in enumerate(iterator):
-            iterator.set_description(f"Batch {batch_i+1}/{params.n_epoch}")
+            iterator.set_description(f"Batch {epoch+1}/{params.n_epoch}")
 
             train_batch = Variable(sample["coordinate"])
             target_batch = Variable(sample["solution"])
@@ -98,6 +98,7 @@ def train_PtrNet(params, num_workers=0):
                 train_batch = train_batch.cuda()
                 target_batch = target_batch.cuda()
             output, p = model(train_batch)
+            # print(output, p)
 
             output = output.contiguous().view(-1, output.size()[-1])
 
