@@ -1,3 +1,5 @@
+import os
+
 import torch
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
@@ -29,7 +31,7 @@ def argparser():
     # GPU
     parser.add_argument('--gpu', default=False, action='store_true', help='Enable gpu')
     # TSP
-    parser.add_argument('--ncity', type=int, default=5, help='Number of points in TSP')
+    parser.add_argument('--ncity', type=int, default=16, help='Number of points in TSP')
     # Network
     parser.add_argument('--embedding_dim', type=int, default=128, help='Embedding size')
     parser.add_argument('--hidden_dim', type=int, default=512, help='Number of hidden units')
@@ -82,6 +84,13 @@ def train_PtrNet(params, num_workers=0):
     CCE = torch.nn.CrossEntropyLoss()
     model_optim = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=params.lr)
     
+    model_pth = f"{params.name}.pth"
+    optim_pth = f"{params.name}_optim.pth"
+    if os.path.isfile(model_pth):
+        model.load_state_dict(torch.load(model_pth))
+    if os.path.isfile(optim_pth):
+        model_optim.load_state_dict(torch.load(optim_pth))
+
     losses = []
     model.train()
     for epoch in range(params.n_epoch):
@@ -116,7 +125,7 @@ def train_PtrNet(params, num_workers=0):
             iterator.set_postfix(loss=f"{loss.item()}")
         iterator.set_postfix(loss=np.average(batch_loss))
     
-    return losses
+    return losses, model, model_optim
 
 def train_NeuralCombOptRL(params, num_workers=0):
     USE_CUDA = bool(params.gpu and torch.cuda.is_available())
@@ -127,6 +136,13 @@ def train_NeuralCombOptRL(params, num_workers=0):
         range(params.actor_lr_decay_step, params.actor_lr_decay_step * 1000,
             params.actor_lr_decay_step), gamma=params.actor_lr_decay_rate)
     critic_exp_mvg_avg = torch.zeros(1)
+
+    model_pth = f"{params.name}.pth"
+    actor_optim_pth = f"{params.name}_actor_optim.pth"
+    if os.path.isfile(model_pth):
+        model.load_state_dict(torch.load(model_pth))
+    if os.path.isfile(actor_optim_pth):
+        actor_optim.load_state_dict(torch.load(optim_pth))
 
     losses = []
     model.train()
@@ -176,19 +192,23 @@ def train_NeuralCombOptRL(params, num_workers=0):
             iterator.set_postfix(loss=f"{loss.item()}")
         iterator.set_postfix(loss=np.average(batch_loss))
     
-    return losses
+    return losses, model, actor_optim
 
 if __name__=="__main__":
     # TODO: 
     # configファイルをyaml形式で作成して、configファイルが指定された時はそちらを使うようにする
     params = argparser()
+    model_path = f"{params.name}.pth"
+    optim_path = f"{params.name}_optim.pth"
+    actor_optim_path = f"{params.name}_actor_optim.pth"
     if params.name == "PtrNet":
-        losses = train_PtrNet(params)
+        losses, model, model_optim = train_PtrNet(params)
+        torch.save(model.state_dict(), model_path)
+        torch.save(model_optim.state_dict(), optim_path)
     else:
-        losses = train_NeuralCombOptRL(params)
-     
-    breakpoint()
+        losses, model, actor_optim = train_NeuralCombOptRL(params)
+        torch.save(model.state_dict(), model_path)
+        torch.save(actor_optim.state_dict(), actor_optim_path)
+
     fig, ax = plot_loss(losses)
     fig.show()
-
-    breakpoint()
