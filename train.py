@@ -54,7 +54,7 @@ def argparser():
     
     return parser.parse_args()
 
-def construct(model_name, params, num_workers=0, USE_CUDA=False):
+def construct(model_name, params, num_workers=0, USE_CUDA=False, is_train=True):
     solve_exactly = True
     if model_name == "PtrNet":
         model = PtrNet(params.embedding_dim, params.hidden_dim, params.num_lstms, params.dropout, params.bidir)
@@ -66,10 +66,11 @@ def construct(model_name, params, num_workers=0, USE_CUDA=False):
     else:
         raise NotImplementedError
 
-    dataset = TSPDataset(params.train_size, params.ncity, solve=solve_exactly)
-
-    dataloader = DataLoader(dataset, batch_size=params.batch_size, shuffle=True, num_workers=num_workers)
-        
+    if is_train:
+        dataset = TSPDataset(params.train_size, params.ncity, solve=solve_exactly)
+        dataloader = DataLoader(dataset, batch_size=params.batch_size, shuffle=True, num_workers=num_workers)
+    else:
+        dataset, dataloader = None, None
     if USE_CUDA:
         num_gpu = torch.cuda.device_count()
         print(f"Using GPU {num_gpu} devices.")
