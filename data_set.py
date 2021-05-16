@@ -5,6 +5,9 @@ import itertools
 from tqdm import tqdm
 from scipy.spatial.distance import cdist
 from tsp_ip import PulpIP
+from multiprocessing import Pool
+import pickle
+import os
 
 def wrap_TSP_IP(coordinates):
     ncity = len(coordinates)
@@ -51,24 +54,36 @@ class TSPDataset(Dataset):
         sample = {'coordinate': tensor, "solution": solution}
         return sample
     
-    def _generate_data(self):
+    def _generate_data(self, processes=2):
         coordinates = []
         solutions = []
         data_iter = tqdm(range(self.data_size), unit='data')
 
-        for i, _ in enumerate(data_iter):
-            data_iter.set_description(f"Data points{i+1/self.data_size}")
-            coordinates.append(np.random.random((self.seq_len, 2)))
-        solutions_iter = tqdm(coordinates, unit='solve')
-
-        if self.solve:
-            for i, coord in enumerate(solutions_iter):
-                solutions_iter.set_description(f"Solved {i+1}/{len(coordinates)}")
-                solutions.append(self.solver(coord))
+        data_dict = f"dataset_{self.data_size}_{self.seq_len}.pkl"
+        if os.path.isfile(data_dict):
+            with open(data_dict, "rb") as f:
+                data = pickle.load(f)
         else:
-            solutions = np.zeros((len(coordinates), 2))
-        data = {"Coordinates": coordinates, "Solutions": solutions}
-        
+            for i, _ in enumerate(data_iter):
+                data_iter.set_description(f"Data points{i+1/self.data_size}")
+                coordinates.append(np.random.random((self.seq_len, 2)))
+            solutions_iter = tqdm(coordinates, unit='solve')
+    
+            if self.solve:
+                with Pool(processes=processes) as pool:
+                    solutions = pool.map(self.solver, solutions_iter)
+                list(tqdm(solutions, total=len(coordinates)))
+                """
+                for i, coord in enumerate(solutions_iter):
+                    solutions_iter.set_description(f"Solved {i+1}/{len(coordinates)}")
+                    solutions.append(self.solver(coord))
+                """
+            else:
+                solutions = np.zeros((len(coordinates), 2))
+            data = {"Coordinates": coordinates, "Solutions": solutions}
+            with open(data_dict, "wb") as f:
+                pickle.dump(data, f)
+
         return data
     
     def _to_onehot(self, coordinates):
