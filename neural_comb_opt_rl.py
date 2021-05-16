@@ -3,21 +3,34 @@ import torch.nn as nn
 from torch.nn import Parameter
 import torch.nn.functional as F
 
-from pointer_network import PtrNet
+from pointer_network import PtrNet, Encoder
 # 元論文： https://arxiv.org/pdf/1611.09940.pdf
 # TODO
 # pointer networkの実装
 # glimpseの実装
 # 対応して、pointer network中のdecoderをこれ用にカスタマイズする必要あり
 # critic networkの実装
+class Decoder(nn.Module):
+    def __init__(self):
+        self.relu1 = nn.ReLU()
+        self.relu2 = nn.ReLU()
+
+    def forward(self, inputs):
+        return self.relu2(self.relu1(inputs))
+    
 class Critic(nn.Module):
     """
     - LSTM encoder (1個, poniter networkと同様)
     - LSTM process block (1個, Vinyals et al., 2015a と同様)
     - 2-layer ReLU decoder
     """
-    def __init__(self):
+    def __init__(self, embedding_dim, hidden_dim, n_layers=5, dropout, bidirectional):
         super(Critic, self).__init__()
+        self.encoder = Encoder(embedding_dim, hidden_dim, n_layers, dropout, bidirectional)
+        self.decoder = Decoder()
+    
+    def forward(self, )
+
 
 class NeuralCombOptRL(nn.Module):
     def __init__(self, input_dim, embedding_dim, hidden_dim, num_lstm_layers, dropout, objective, bidirectional=False, use_cuda=False, is_train=False):
