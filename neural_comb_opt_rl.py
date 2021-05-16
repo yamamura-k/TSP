@@ -10,6 +10,15 @@ from pointer_network import PtrNet
 # glimpseの実装
 # 対応して、pointer network中のdecoderをこれ用にカスタマイズする必要あり
 # critic networkの実装
+class Critic(nn.Module):
+    """
+    - LSTM encoder (1個, poniter networkと同様)
+    - LSTM process block (1個, Vinyals et al., 2015a と同様)
+    - 2-layer ReLU decoder
+    """
+    def __init__(self):
+        super(Critic, self).__init__()
+
 class NeuralCombOptRL(nn.Module):
     def __init__(self, input_dim, embedding_dim, hidden_dim, num_lstm_layers, dropout, objective, bidirectional=False, use_cuda=False, is_train=False):
         super(NeuralCombOptRL, self).__init__()
