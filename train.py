@@ -88,6 +88,7 @@ def train_PtrNet(params, num_workers=0):
     model_pth = f"{params.name}.pth"
     optim_pth = f"{params.name}_optim.pth"
     if os.path.isfile(model_pth):
+        print("use preserved weight")
         model.load_state_dict(torch.load(model_pth))
     if os.path.isfile(optim_pth):
         model_optim.load_state_dict(torch.load(optim_pth))
