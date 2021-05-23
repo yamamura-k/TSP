@@ -18,7 +18,10 @@ def wrap_TSP_IP(coordinates):
         
     D = cdist(coordinates, coordinates)
     solver = PulpIP(ncity, D, MTZ_level=2)
-    solution = solver.solve()
+    try:
+        solution = solver.solve(solver_name="cplex")
+    except:
+        solution = solver.solve()
     return np.asarray(solution)
 
 def tsp_dp_opt(coordinates):
@@ -43,7 +46,11 @@ class TSPDataset(Dataset):
         self.seq_len = seq_len
         self.solver = solver
         self.solve = solve
-        self.data = self._generate_data()
+        try:
+            with open(f"dataset_{self.data_size}_{self.seq_len}.pkl", "rb") as f:
+                self.data = pickle.load(f)
+        except FileNotFoundError:
+            self.data = self._generate_data()
     
     def __len__(self):
         return self.data_size
@@ -54,7 +61,7 @@ class TSPDataset(Dataset):
         sample = {'coordinate': tensor, "solution": solution}
         return sample
     
-    def _generate_data(self, processes=2):
+    def _generate_data(self, processes=3):
         coordinates = []
         solutions = []
         data_iter = tqdm(range(self.data_size), unit='data')

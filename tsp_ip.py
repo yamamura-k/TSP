@@ -40,16 +40,24 @@ class PulpIP:
                     self.problem += self.u[i] <= (self.ncity - 1) - (1 - self.x[i][0]) - (self.ncity - 3)*self.x[0][i]
 
 
-    def solve(self, solver_name: str ="cbc", initial_tour: List[int] =None) -> List[int]:
+    def solve(self, solver_name: str ="cbc", initial_tour: List[int] =None, threads: int=2) -> List[int]:
         ws = False
         if initial_tour:
             self.warmStart(initial_tour)
             ws = True
         if solver_name == "cbc":
-            solver = pulp.PULP_CBC_CMD(msg=0, warmStart=ws)
+            solver = pulp.PULP_CBC_CMD(msg=0, warmStart=ws, threads=threads)
         elif solver_name == "cplex":
-            solver = pulp.CPLEX_CMD(msg=0)
-        status = self.problem.solve(solver)
+            solver = pulp.CPLEX_CMD(msg=0, threads=threads)
+        else:
+            print(f"Cannot use {solver_name} to solve.")
+            print("We use cbc solver instead.")
+        try:
+            status = self.problem.solve(solver)
+        except:
+            solver = pulp.PULP_CBC_CMD(msg=0, warmStart=ws, threads=threads)
+            status = self.problem.solve(solver)
+
         tour = list(self.cities)
         tour.sort(key=lambda x:self.u[x].value())
         for i, j in zip(tour, tour[1:]+tour[:1]):

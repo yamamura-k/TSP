@@ -56,7 +56,7 @@ def test1(filename):
     print("\nga simple", total_dist, "\ntime", time()-ts)
     
     ts = time()
-    tour = IP.solve()
+    tour = IP.solve(solver_name="cplex")
     total_dist = calc_dist(tour, D)
     print("\nip", total_dist, "\ntime", time()-ts)
     
@@ -88,12 +88,11 @@ def test3(params):
     print("\nPtrNet", total_dist, "\ntime", time()-ts)
 
 if __name__=="__main__":
-    import pyscipopt
     parser = argparser()
     args = parser.parse_args()
-    # test1(args.f)
+    test1(args.f)
     # test2(args.f)
-    test3(args)
+    # test3(args)
 # ToDo
 """
 + optunaによるパラメータチューニングの実装
