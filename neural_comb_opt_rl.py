@@ -24,12 +24,12 @@ class Critic(nn.Module):
     - LSTM process block (1個, Vinyals et al., 2015a と同様)
     - 2-layer ReLU decoder
     """
-    def __init__(self, embedding_dim, hidden_dim, n_layers=5, dropout, bidirectional):
+    def __init__(self, embedding_dim, hidden_dim, n_layers=5, dropout=0.5, bidirectional=False):
         super(Critic, self).__init__()
         self.encoder = Encoder(embedding_dim, hidden_dim, n_layers, dropout, bidirectional)
         self.decoder = Decoder()
     
-    def forward(self, )
+    #def forward(self, )
 
 
 class NeuralCombOptRL(nn.Module):
