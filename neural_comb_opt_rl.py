@@ -4,13 +4,55 @@ from torch import Tensor
 from torch.nn import Parameter
 import numpy as np
 
-from pointer_network import Encoder, Attention
+from pointer_network import Encoder
 # 元論文： https://arxiv.org/pdf/1611.09940.pdf
 # TODO
 # pointer networkの実装
 # glimpseの実装
 # 対応して、pointer network中のdecoderをこれ用にカスタマイズする必要あり
 # critic networkの実装
+class Attention(nn.Module):
+    def __init__(self, input_dim, hidden_dim, n_glimpse=0):
+        super(Attention, self).__init__()
+
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+
+        self.input_lin = nn.Linear(input_dim, hidden_dim)
+        # self.context_lin = nn.Linear(input_dim, hidden_dim)# 論文はこっちだけど、これにすると途中で行列サイズが合わなくなる
+        self.context_lin = nn.Conv1d(input_dim, hidden_dim, 1, 1)# number of input channel, number of output channel, kernel size, stlide
+        self.V = Parameter(torch.FloatTensor(hidden_dim), requires_grad=True)
+        self._inf = Parameter(torch.FloatTensor([float('-inf')]), requires_grad=False)
+
+        self.tanh = nn.Tanh()
+        self.softmax = nn.Softmax()
+
+        nn.init.uniform_(self.V, -1, 1)
+    
+    def forward(self, input_hidden_state, context, selection_mask):
+        # batchsize, hidden_dim, length_of_sequence
+        _input = self.input_lin(input_hidden_state).unsqueeze(2).expand(-1, -1, context.size(1))
+
+        context = context.permute(0, 2, 1)
+        _context = self.context_lin(context)
+
+        V = self.V.unsqueeze(0).expand(context.size(0), -1).unsqueeze(1)
+
+        # batchsize, length_of_sequence
+        attention = torch.bmm(V, self.tanh(_input + _context)).squeeze(1)
+
+        if len(attention[selection_mask]) > 0:
+            attention[selection_mask] = self.inf[selection_mask]
+        
+        alpha = self.softmax(attention)
+
+        hidden_state = torch.bmm(_context, alpha.unsqueeze(2)).squeeze(2)
+
+        return hidden_state, alpha
+    
+    def init_inf(self, mask_size):
+        self.inf = self._inf.unsqueeze(1).expand(*mask_size)
+
 class Decoder(nn.Module):
     def __init__(self, embedding_dim, hidden_dim, max_decode_len):
         super(Decoder, self).__init__()
@@ -165,7 +207,7 @@ class NeuralCombOptRL(nn.Module):
         for i, action_id in enumerate(action_idxs):
             actions.append(inputs[i, action_id.data, :])
         
-        if self.is_train:
+        if False:#self.is_train:# これは本当に必要なのか？必要ない気がするが...？
             probs = []
             for i, (prob, action_id) in enumerate(zip(probs_, action_idxs)):
                 probs.append(probs_[i, action_id.data])
