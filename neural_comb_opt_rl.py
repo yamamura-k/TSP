@@ -2,8 +2,9 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 from torch.nn import Parameter
+import numpy as np
 
-from pointer_network import PtrNet, Encoder
+from pointer_network import Encoder, Attention
 # 元論文： https://arxiv.org/pdf/1611.09940.pdf
 # TODO
 # pointer networkの実装
@@ -11,6 +12,116 @@ from pointer_network import PtrNet, Encoder
 # 対応して、pointer network中のdecoderをこれ用にカスタマイズする必要あり
 # critic networkの実装
 class Decoder(nn.Module):
+    def __init__(self, embedding_dim, hidden_dim, max_decode_len):
+        super(Decoder, self).__init__()
+        self.embedding_dim = embedding_dim
+
+        self.hidden_dim = hidden_dim
+        self.max_decode_len = max_decode_len
+
+        self.input2hidden = nn.Linear(embedding_dim, 4*hidden_dim)
+        self.hidden2hidden = nn.Linear(hidden_dim, 4*hidden_dim)
+        self.hidden2out = nn.Linear(hidden_dim*2, hidden_dim)
+        self.attention = Attention(hidden_dim, hidden_dim)
+
+        self.mask = Parameter(torch.ones(1), requires_grad=False)
+        self.runner = Parameter(torch.zeros(1), requires_grad=False)
+    
+    def forward(self, embedded_inputs, decoder_input, hidden, context):
+        batch_size = embedded_inputs.size(0)
+        input_length = self.max_decode_len
+
+        selection_mask = self.mask.repeat(input_length).unsqueeze(0).repeat(batch_size, 1)
+        self.attention.init_inf(selection_mask.size())
+
+        runner = self.runner.repeat(input_length)
+        for i in range(input_length):
+            runner.data[i] = i
+        runner = runner.unsqueeze(0).expand(batch_size, -1).long()
+
+        outputs = []
+        pointers = []
+
+        def step(x, hidden):
+            # 通常のLSTM
+            h, c = hidden
+            gates = self.input2hidden(x) + self.hidden2hidden(h)
+
+            _input, forget, cell, out = gates.chunk(4, 1)
+            
+            _input = torch.sigmoid(_input)
+            forget = torch.sigmoid(forget)
+            cell = torch.tanh(cell)
+            out = torch.sigmoid(out)
+
+            context_state = forget*c + _input*cell
+            hidden_state = out*torch.tanh(context_state)
+
+            hidden_t, output = self.attention(hidden_state, context, torch.eq(selection_mask, 0))
+            hidden_t = torch.tanh(self.hidden2out(torch.cat((hidden_t, hidden_state), 1)))
+
+            return hidden_t, context_state, output
+        
+        for _ in range(input_length):
+            h_t, c_t, outs = step(decoder_input, hidden)
+            hidden = (h_t, c_t)
+
+            masked_outputs = outs*selection_mask
+
+            max_probs, indices = masked_outputs.max(1)
+            one_hot_pointers = (runner == indices.unsqueeze(1).expand(-1, outs.size()[1])).float()
+
+            selection_mask = selection_mask*(1 - one_hot_pointers)
+
+            embedding_mask = one_hot_pointers.unsqueeze(2).expand(-1, -1, self.embedding_dim).byte()
+            decoder_input = embedded_inputs[embedding_mask.data].view(batch_size, self.embedding_dim)
+
+            outputs.append(outs.unsqueeze(0))
+            pointers.append(indices.unsqueeze(1))
+        
+        outputs = torch.cat(outputs).permute(1, 0, 2)
+        pointers = torch.cat(pointers, 1)
+
+        return (outputs, pointers), hidden
+
+class PtrNet(nn.Module):
+    def __init__(self, embedding_dim, hidden_dim, num_lstm_layers, dropout, max_decode_len, bidirectional=False):
+        super(PtrNet, self).__init__()
+        self.embedding_dim = embedding_dim
+        self.max_decode_len = max_decode_len
+        self.bidir = bidirectional
+        
+        self.embedding = nn.Linear(2, embedding_dim)
+        self.encoder = Encoder(embedding_dim, hidden_dim, num_lstm_layers, dropout, bidirectional)
+
+        self.decoder = Decoder(embedding_dim, hidden_dim, max_decode_len)
+        self.decoder_input0 = Parameter(torch.FloatTensor(embedding_dim), requires_grad=False)
+
+        nn.init.uniform_(self.decoder_input0, -1, 1)
+
+    def forward(self, inputs):
+        batch_size = inputs.size(0)
+        input_length = self.max_decode_len
+
+        decoder_input0 = self.decoder_input0.unsqueeze(0).expand(batch_size, -1)
+
+        inputs = inputs.view(batch_size*input_length, -1)
+        
+        embedded_inputs = self.embedding(inputs).view(batch_size, input_length, -1)
+
+        encoder_hidden0 = self.encoder.init_hidden(embedded_inputs)
+        encoder_outputs, encoder_hidden = self.encoder(embedded_inputs, encoder_hidden0)
+
+        if self.bidir:
+            decoder_hidden0 = (torch.cat(tuple(encoder_hidden[0][-2:]), dim=-1), torch.cat(tuple(encoder_hidden[1][-2:]), dim=-1))
+        else:
+            decoder_hidden0 = (encoder_hidden[0][-1], encoder_hidden[1][-1])
+
+        (outputs, pointers), decoder_hidden = self.decoder(embedded_inputs, decoder_input0, decoder_hidden0, encoder_outputs)
+
+        return outputs, pointers
+
+class DecoderForCritic(nn.Module):
     def __init__(self):
         self.relu1 = nn.ReLU()
         self.relu2 = nn.ReLU()
@@ -27,51 +138,37 @@ class Critic(nn.Module):
     def __init__(self, embedding_dim, hidden_dim, n_layers=5, dropout=0.5, bidirectional=False):
         super(Critic, self).__init__()
         self.encoder = Encoder(embedding_dim, hidden_dim, n_layers, dropout, bidirectional)
-        self.decoder = Decoder()
+        self.decoder = DecoderForCritic()
     
     #def forward(self, )
 
 
 class NeuralCombOptRL(nn.Module):
-    def __init__(self, input_dim, embedding_dim, hidden_dim, num_lstm_layers, dropout, objective, bidirectional=False, use_cuda=False, is_train=False):
+    def __init__(self, input_dim, embedding_dim, hidden_dim, max_decode_len, num_lstm_layers, dropout, objective, bidirectional=False, use_cuda=False, is_train=False):
         super(NeuralCombOptRL, self).__init__()
         self.objective = objective
         self.input_dim = input_dim
         self.use_cuda = use_cuda
         self.is_train = is_train
-        self.actor_net = PtrNet(embedding_dim, hidden_dim, num_lstm_layers, dropout, bidirectional=bidirectional)
+        self.max_decode_len = max_decode_len
+        self.actor_net = PtrNet(embedding_dim, hidden_dim, num_lstm_layers, dropout, max_decode_len, bidirectional=bidirectional)
 
-        embedding = torch.FloatTensor(input_dim, embedding_dim)
-        if use_cuda:
-            embedding = embedding.cuda()
-        self.embedding = Parameter(embedding)
-        self.embedding.data.uniform_(-(1./pow(embedding_dim, 0.5)), 1./pow(embedding_dim, 0.5))
     
     def forward(self, inputs):
         batch_size = inputs.size(0)
         input_dim = inputs.size(1)
         sourceL = inputs.size(2)
-        
-        embedding = self.embedding.repeat(batch_size, 1, 1)
-        embedded_inputs = []
-        inpts = inputs.unsqueeze(1)
-
-        for i in range(sourceL):
-            embedded_inputs.append(torch.bmm(inpts[:, :, :, i].float(),embedding).squeeze(1))
-
-        embedded_inputs = torch.cat(embedded_inputs).view(batch_size, embedding.size(2), sourceL)
-        probs_, action_idxs = self.actor_net(embedded_inputs)
+        probs_, action_idxs = self.actor_net(inputs)
 
         actions = []
-        inputs_ = inputs.transpose(1, 2)
 
-        for action_id in action_idxs:
-            actions.append(inputs_[list(range(batch_size)), action_id.data, :])
+        for i, action_id in enumerate(action_idxs):
+            actions.append(inputs[i, action_id.data, :])
         
         if self.is_train:
             probs = []
-            for prob, action_id in zip(probs_, action_idxs):
-                probs.append(prob[list(range(batch_size)), action_id.data])
+            for i, (prob, action_id) in enumerate(zip(probs_, action_idxs)):
+                probs.append(probs_[i, action_id.data])
         
         else:
             probs = probs_

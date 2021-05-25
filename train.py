@@ -59,7 +59,7 @@ def construct(model_name, params, num_workers=0, USE_CUDA=False, is_train=True):
         model = PtrNet(params.embedding_dim, params.hidden_dim, params.num_lstms, params.dropout, params.bidir)
     elif model_name == "NeuralCombOptRL":
         model = NeuralCombOptRL(
-            params.ncity, params.embedding_dim, params.hidden_dim, params.num_lstms,
+            2, params.embedding_dim, params.hidden_dim, params.ncity, params.num_lstms,
             params.dropout, reward_tsp, bidirectional=params.bidir, is_train=True, use_cuda=USE_CUDA)
         solve_exactly = False
     else:
@@ -98,7 +98,7 @@ def train_PtrNet(params, num_workers=0):
         iterator = tqdm(dataloader, unit="Batch")
 
         for batch_i, sample in enumerate(iterator):
-            iterator.set_description(f"Batch {epoch+1}/{params.n_epoch}")
+            iterator.set_description(f"Epoch {epoch+1}/{params.n_epoch}")
 
             train_batch = Variable(sample["coordinate"])
             target_batch = Variable(sample["solution"])
@@ -151,7 +151,7 @@ def train_NeuralCombOptRL(params, num_workers=0):
         iterator = tqdm(dataloader, unit="Batch")
 
         for batch_i, sample in enumerate(iterator):
-            iterator.set_description(f"Batch {batch_i+1}/{params.n_epoch}")
+            iterator.set_description(f"Epoch {epoch+1}/{params.n_epoch}")
 
             train_batch = Variable(sample["coordinate"])
 
@@ -189,7 +189,7 @@ def train_NeuralCombOptRL(params, num_workers=0):
             losses.append(actor_loss.item())
             batch_loss.append(actor_loss.item())
 
-            iterator.set_postfix(loss=f"{losses.item()}")
+            iterator.set_postfix(loss=f"{actor_loss.item()}")
         iterator.set_postfix(loss=np.average(batch_loss))
     
     return losses, model, actor_optim
