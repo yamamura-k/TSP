@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
+from torch import Tensor
 from torch.nn import Parameter
-import torch.nn.functional as F
 
 from pointer_network import PtrNet, Encoder
 # 元論文： https://arxiv.org/pdf/1611.09940.pdf
@@ -49,8 +49,8 @@ class NeuralCombOptRL(nn.Module):
     
     def forward(self, inputs):
         batch_size = inputs.size(0)
-        input_dim = inputs.size(2)
-        sourceL = inputs.size(1)
+        input_dim = inputs.size(1)
+        sourceL = inputs.size(2)
         
         embedding = self.embedding.repeat(batch_size, 1, 1)
         embedded_inputs = []
@@ -59,7 +59,7 @@ class NeuralCombOptRL(nn.Module):
         for i in range(sourceL):
             embedded_inputs.append(torch.bmm(inpts[:, :, :, i].float(),embedding).squeeze(1))
 
-        embedded_inputs = torch.cat(embedded_inputs).view(batch_size, sourceL, embedding.size(2))
+        embedded_inputs = torch.cat(embedded_inputs).view(batch_size, embedding.size(2), sourceL)
         probs_, action_idxs = self.actor_net(embedded_inputs)
 
         actions = []
@@ -83,7 +83,7 @@ class NeuralCombOptRL(nn.Module):
 def reward_tsp(sample_solution, USE_CUDA=False):
     batch_size = sample_solution[0].size(0)
     n = len(sample_solution)
-    tour_len = Variable(torch.zeros([batch_size]))
+    tour_len = Tensor(torch.zeros([batch_size]))
     
     if USE_CUDA:
         tour_len = tour_len.cuda()

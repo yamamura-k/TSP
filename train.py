@@ -2,7 +2,6 @@ import os
 
 import torch
 import torch.optim as optim
-import torch.backends.cudnn as cudnn
 from torch.optim import lr_scheduler
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
@@ -143,7 +142,7 @@ def train_NeuralCombOptRL(params, num_workers=0):
     if os.path.isfile(model_pth):
         model.load_state_dict(torch.load(model_pth))
     if os.path.isfile(actor_optim_pth):
-        actor_optim.load_state_dict(torch.load(optim_pth))
+        actor_optim.load_state_dict(torch.load(actor_optim_pth))
 
     losses = []
     model.train()
@@ -164,7 +163,7 @@ def train_NeuralCombOptRL(params, num_workers=0):
             if batch_i == 0:
                 critic_exp_mvg_avg = R.mean()
             else:
-                critic_exp_mvg_avg = (critic_exp_mvg_avg * beta) + ((1. - beta) * R.mean())
+                critic_exp_mvg_avg = (critic_exp_mvg_avg * params.critic_beta) + ((1. - params.critic_beta) * R.mean())
             
             advantage = R - critic_exp_mvg_avg
             logprobs = 0
@@ -190,7 +189,7 @@ def train_NeuralCombOptRL(params, num_workers=0):
             losses.append(actor_loss.item())
             batch_loss.append(actor_loss.item())
 
-            iterator.set_postfix(loss=f"{loss.item()}")
+            iterator.set_postfix(loss=f"{losses.item()}")
         iterator.set_postfix(loss=np.average(batch_loss))
     
     return losses, model, actor_optim
