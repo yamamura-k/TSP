@@ -59,6 +59,7 @@ def test1(filename):
     tour = IP.solve(solver_name="cplex")
     total_dist = calc_dist(tour, D)
     print("\nip", total_dist, "\ntime", time()-ts)
+    print(*tour)
     
     #plot(tour, coord, figname=f"./{name}_{total_dist}.png")
 
@@ -84,15 +85,15 @@ def test3(params):
     _, tour = model(_input)
     tour = list(tour.detach().numpy()[0])
     total_dist = calc_dist(tour, D)
-
     print("\nPtrNet", total_dist, "\ntime", time()-ts)
+    print(*tour)
 
 if __name__=="__main__":
     parser = argparser()
     args = parser.parse_args()
     test1(args.f)
     # test2(args.f)
-    # test3(args)
+    test3(args)
 # ToDo
 """
 + optunaによるパラメータチューニングの実装
