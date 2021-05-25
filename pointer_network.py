@@ -148,7 +148,7 @@ class Decoder(nn.Module):
 
             outputs.append(outs.unsqueeze(0))
             pointers.append(indices.unsqueeze(1))
-        
+            
         outputs = torch.cat(outputs).permute(1, 0, 2)
         pointers = torch.cat(pointers, 1)
 

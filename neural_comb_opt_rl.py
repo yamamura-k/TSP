@@ -159,7 +159,7 @@ class NeuralCombOptRL(nn.Module):
         input_dim = inputs.size(1)
         sourceL = inputs.size(2)
         probs_, action_idxs = self.actor_net(inputs)
-
+        breakpoint()
         actions = []
 
         for i, action_id in enumerate(action_idxs):
@@ -178,15 +178,15 @@ class NeuralCombOptRL(nn.Module):
         return R, probs, actions, action_idxs
 
 def reward_tsp(sample_solution, USE_CUDA=False):
-    batch_size = sample_solution[0].size(0)
-    n = len(sample_solution)
+    batch_size = len(sample_solution)
+    n = sample_solution[0].size(0)
     tour_len = Tensor(torch.zeros([batch_size]))
     
     if USE_CUDA:
         tour_len = tour_len.cuda()
 
-    for i in range(n-1):
-        tour_len += torch.norm(sample_solution[i] - sample_solution[i+1], dim=1)
-    
-    tour_len += torch.norm(sample_solution[n-1] - sample_solution[0], dim=1)
+    for i in range(batch_size):
+        for j in range(n-1):
+            tour_len[i] += torch.norm(sample_solution[i][j] - sample_solution[i][j+1])
+        tour_len[i] += torch.norm(sample_solution[i][n-1] - sample_solution[i][0])
     return tour_len

@@ -172,6 +172,7 @@ def train_NeuralCombOptRL(params, num_workers=0):
                 logprob = torch.log(prob)
                 nll += -logprob
                 logprobs += logprob
+            breakpoint()
             nll[(nll != nll).detach()] = 0.
             logprobs[(logprobs < -1000).detach()] = 0.
 
