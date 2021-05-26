@@ -84,8 +84,16 @@ def test3(params):
     _, tour = model(_input)
     tour = list(tour.detach().numpy()[0])
     total_dist = calc_dist(tour, D)
-
     print("\nPtrNet", total_dist, "\ntime", time()-ts)
+
+    model, _, _ = construct("NeuralCombOptRL", params, is_train=False)
+    _input = torch.Tensor([np.asarray([x for x in coord.values()])])
+    ts = time()
+    _, _, _, tour = model(_input)
+    tour = list(tour.detach().numpy()[0])
+    total_dist = calc_dist(tour, D)
+
+    print("\nNeuralCombOptRL", total_dist, "\ntime", time()-ts)
 
 if __name__=="__main__":
     import pyscipopt
