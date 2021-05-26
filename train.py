@@ -10,8 +10,8 @@ import numpy as np
 from argparse import ArgumentParser
 from tqdm import tqdm
 
-from pointer_network import PtrNet
-from neural_comb_opt_rl import NeuralCombOptRL, reward_tsp
+from models.pointer_network import PtrNet
+from models.neural_comb_opt_rl import NeuralCombOptRL, Critic, reward_tsp
 from data_set import TSPDataset
 from utils import plot_loss
 
@@ -166,17 +166,17 @@ def train_NeuralCombOptRL(params, num_workers=0):
                 critic_exp_mvg_avg = (critic_exp_mvg_avg * params.critic_beta) + ((1. - params.critic_beta) * R.mean())
             
             advantage = R - critic_exp_mvg_avg
-            logprobs = 0
-            nll = 0
-            for prob in probs:
-                logprob = torch.log(prob)
-                nll += -logprob
-                logprobs += logprob
-            breakpoint()
-            nll[(nll != nll).detach()] = 0.
-            logprobs[(logprobs < -1000).detach()] = 0.
-
-            reinforce = advantage*logprobs
+            # logprobs = 0
+            # nll = 0
+            # breakpoint()
+            # for prob in probs:
+            #     logprob = torch.log(prob)
+            #     nll += -logprob
+            #     logprobs += logprob
+            # nll[(nll != nll).detach()] = 0.
+            # logprobs[(logprobs < -1000).detach()] = 0.
+            
+            reinforce = advantage*torch.log(probs).sum()
             actor_loss = reinforce.mean()
 
             actor_optim.zero_grad()

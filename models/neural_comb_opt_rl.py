@@ -4,7 +4,7 @@ from torch import Tensor
 from torch.nn import Parameter
 import numpy as np
 
-from pointer_network import Encoder
+from models.pointer_network import Encoder
 # 元論文： https://arxiv.org/pdf/1611.09940.pdf
 # TODO
 # pointer networkの実装
@@ -36,7 +36,7 @@ class Attention(nn.Module):
         context = context.permute(0, 2, 1)
         _context = self.context_lin(context)
 
-        V = self.V.unsqueeze(0).expand(context.size(0), -1).unsqueeze(1)
+        V = self.V.unsqueeze(0).expand(context.size(0), -1).unsqueeze(1)# 逆伝播計算でVがnanになっているように見える
 
         # batchsize, length_of_sequence
         attention = torch.bmm(V, self.tanh(_input + _context)).squeeze(1)
@@ -81,7 +81,7 @@ class Decoder(nn.Module):
             runner.data[i] = i
         runner = runner.unsqueeze(0).expand(batch_size, -1).long()
 
-        outputs = []
+        outputs = torch.ones(batch_size)
         pointers = []
 
         def step(x, hidden):
@@ -110,6 +110,7 @@ class Decoder(nn.Module):
 
             masked_outputs = outs*selection_mask
 
+            # 確率最大のものを選択する
             max_probs, indices = masked_outputs.max(1)
             one_hot_pointers = (runner == indices.unsqueeze(1).expand(-1, outs.size()[1])).float()
 
@@ -118,10 +119,10 @@ class Decoder(nn.Module):
             embedding_mask = one_hot_pointers.unsqueeze(2).expand(-1, -1, self.embedding_dim).byte()
             decoder_input = embedded_inputs[embedding_mask.data].view(batch_size, self.embedding_dim)
 
-            outputs.append(outs.unsqueeze(0))
+            outputs *= max_probs
             pointers.append(indices.unsqueeze(1))
         
-        outputs = torch.cat(outputs).permute(1, 0, 2)
+        #outputs = torch.cat(outputs).permute(1, 0, 2)
         pointers = torch.cat(pointers, 1)
 
         return (outputs, pointers), hidden
@@ -149,9 +150,10 @@ class PtrNet(nn.Module):
 
         inputs = inputs.view(batch_size*input_length, -1)
         
+        # [batch_size x input_length x embedding_dim]
         embedded_inputs = self.embedding(inputs).view(batch_size, input_length, -1)
-
         encoder_hidden0 = self.encoder.init_hidden(embedded_inputs)
+        # [batch_size x input_length x hidden_dim]
         encoder_outputs, encoder_hidden = self.encoder(embedded_inputs, encoder_hidden0)
 
         if self.bidir:
@@ -162,14 +164,6 @@ class PtrNet(nn.Module):
         (outputs, pointers), decoder_hidden = self.decoder(embedded_inputs, decoder_input0, decoder_hidden0, encoder_outputs)
 
         return outputs, pointers
-
-class DecoderForCritic(nn.Module):
-    def __init__(self):
-        self.relu1 = nn.ReLU()
-        self.relu2 = nn.ReLU()
-
-    def forward(self, inputs):
-        return self.relu2(self.relu1(inputs))
     
 class Critic(nn.Module):
     """
@@ -177,12 +171,34 @@ class Critic(nn.Module):
     - LSTM process block (1個, Vinyals et al., 2015a と同様)
     - 2-layer ReLU decoder
     """
-    def __init__(self, embedding_dim, hidden_dim, n_layers=5, dropout=0.5, bidirectional=False):
+    def __init__(self, embedding_dim, hidden_dim, n_layers=5, dropout=0.5, n_process_block_iters=4, bidirectional=False):
         super(Critic, self).__init__()
+        self.n_process_block_iters = n_process_block_iters
         self.encoder = Encoder(embedding_dim, hidden_dim, n_layers, dropout, bidirectional)
-        self.decoder = DecoderForCritic()
+        self.process_block = Attention(hidden_dim, hidden_dim)
+        self.decoder = nn.Sequential(nn.Linear(hidden_dim, hidden_dim),nn.ReLU(), nn.Linear(hidden_dim, 1))
+        self.softmax = nn.Softmax()
     
-    #def forward(self, )
+    def forward(self, inputs):
+        batch_size = inputs.size(0)
+        decoder_input0 = self.decoder_input0.unsqueeze(0).expand(batch_size, -1)
+        encoder_hidden0 = self.encoder.init_hidden(inputs)
+        # [batch_size x input_length x hidden_dim]
+        encoder_outputs, encoder_hidden = self.encoder(inputs, encoder_hidden0)
+        
+        if self.bidir:
+            process_block_state = (torch.cat(tuple(encoder_hidden[0][-2:]), dim=-1), torch.cat(tuple(encoder_hidden[1][-2:]), dim=-1))
+        else:
+            process_block_state = (encoder_hidden[0][-1], encoder_hidden[1][-1])
+        
+        for _ in range(self.n_process_block_iters):
+            ref, logits = self.process_block(process_block_state, encoder_outputs)
+            process_block_state = torch.bmm(ref, self.softmax(logits).unsqueeze(2)).squeeze(2)
+
+        (outputs, pointers), decoder_hidden = self.decoder(inputs, decoder_input0, process_block_state, encoder_outputs)
+        
+        return (outputs, pointers), decoder_hidden
+
 
 
 class NeuralCombOptRL(nn.Module):
@@ -198,23 +214,21 @@ class NeuralCombOptRL(nn.Module):
     
     def forward(self, inputs):
         batch_size = inputs.size(0)
-        input_dim = inputs.size(1)
-        sourceL = inputs.size(2)
+        input_dim = inputs.size(2)
+        sourceL = inputs.size(1)
         probs_, action_idxs = self.actor_net(inputs)
-        breakpoint()
         actions = []
-
+        #breakpoint()
         for i, action_id in enumerate(action_idxs):
             actions.append(inputs[i, action_id.data, :])
         
-        if False:#self.is_train:# これは本当に必要なのか？必要ない気がするが...？
+        if False:# self.is_train:
             probs = []
             for i, (prob, action_id) in enumerate(zip(probs_, action_idxs)):
                 probs.append(probs_[i, action_id.data])
         
         else:
             probs = probs_
-        
         R = self.objective(actions, self.use_cuda)
 
         return R, probs, actions, action_idxs
@@ -226,7 +240,6 @@ def reward_tsp(sample_solution, USE_CUDA=False):
     
     if USE_CUDA:
         tour_len = tour_len.cuda()
-
     for i in range(batch_size):
         for j in range(n-1):
             tour_len[i] += torch.norm(sample_solution[i][j] - sample_solution[i][j+1])
