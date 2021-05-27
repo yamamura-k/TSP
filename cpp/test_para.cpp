@@ -5,15 +5,30 @@
 #include "SimulatedAnnealing.h"
 #include "mpi.h"
 
+
 template <class C>
-void SendrecvVector(C &send_buffer, int dest_rank, C &recv_buffer, int src_rank)
+void RootRecvVector(int src_rank, C &recv_buffer)
 {
-  MPI_Status st;
-  int sendcount = send_buffer.size();
   int recvcount;
-  MPI_Sendrecv(&sendcount, 1, MPI_INT, dest_rank, 0, &recvcount, 1, MPI_INT, src_rank, 0, MPI_COMM_WORLD, &st);
+  MPI_Status st;
+  MPI_Recv(&recvcount, 1, MPI_INT, src_rank, 0, MPI_COMM_WORLD, &st);
   recv_buffer.resize(recvcount);
-  MPI_Sendrecv(&send_buffer[0], sendcount * sizeof(send_buffer[0]), MPI_BYTE, dest_rank, 0, &recv_buffer[0], recvcount * sizeof(recv_buffer[0]), MPI_BYTE, src_rank, 0, MPI_COMM_WORLD, &st);
+  MPI_Recv(&recv_buffer[0], recvcount * sizeof(recv_buffer[0]), MPI_BYTE, src_rank, 0, MPI_COMM_WORLD, &st);
+}
+template <class C>
+void SendVector(int dest_rank, C send_buffer)
+{
+  int sendcount = send_buffer.size();
+  //MPI_Send(&sendcount, 1, MPI_INT, dest_rank, 0, MPI_COMM_WORLD);
+  //MPI_Send(&send_buffer[0], sendcount * sizeof(send_buffer[0]), MPI_BYTE, dest_rank, 0, MPI_COMM_WORLD);
+  
+  MPI_Request req1, req2;
+  MPI_Status st1, st2;
+  MPI_Isend(&sendcount, 1, MPI_INT, dest_rank, 0, MPI_COMM_WORLD, &req1);
+  MPI_Isend(&send_buffer[0], sendcount * sizeof(send_buffer[0]), MPI_BYTE, dest_rank, 0, MPI_COMM_WORLD, &req2);
+  MPI_Wait(&req1, &st1);
+  MPI_Wait(&req2, &st2);
+  
 }
 
 int main(int argc, char *argv[])
@@ -48,29 +63,40 @@ int main(int argc, char *argv[])
    MPI_Comm_size(MPI_COMM_WORLD, &size);
    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
    SimulatedAnnealing problem(ncity, D);
-   // なんかデッドロック的なことが起こってそうなのでまた後日デバッグする
-   std::vector<int> recv_buffer;
-   std::vector<double> send_length_buffer, recv_length_buffer;
-   //const int dest_rank = 0;
-   const int dest_rank = (rank-1+size) %size;
-   const int src_rank = (rank-1+size) %size;
+   std::vector<double> send_length_buffer;
    double ans = problem.solve(T, T_STOP, C);
    send_length_buffer.push_back(ans);
-   SendrecvVector(problem.best.tour, dest_rank, recv_buffer, src_rank);
-   SendrecvVector(send_length_buffer, dest_rank, recv_length_buffer, src_rank);
+
+   SendVector(0, problem.best.tour);
+   SendVector(0, send_length_buffer);
+   //std::cout << "#" << rank << " Send solutions\n";
+
    if(rank == 0)
    {
-      MPI_Barrier(MPI_COMM_WORLD);
+      std::vector< std::vector<int> > recv_buffer;
+      std::vector<double> recv_length_buffer;
+      //const int dest_rank = 0;
+      int src_rank;
+      for(src_rank = 0; src_rank < size; src_rank++)
+      {
+         std::vector<int> incumbent;
+         std::vector<double> incumbent_len;
+         RootRecvVector(src_rank, incumbent);
+         RootRecvVector(src_rank, incumbent_len);
+         recv_buffer.push_back(incumbent);
+         recv_length_buffer.push_back(incumbent_len[0]);
+         //std::cout << "Receive solutions from " << src_rank << std::endl;
+      }
       //std::vector<double>::iterator minIt = *std::min_element(recv_length_buffer.begin(), recv_length_buffer.end());
       auto minIt = std::min_element(recv_length_buffer.begin(), recv_length_buffer.end());
       size_t minIndex = std::distance(recv_length_buffer.begin(), minIt);
       std::cout << "rank: " << minIndex << "\ntour length: " << recv_length_buffer[minIndex] << "\ntour:\n";
       for(auto p : recv_buffer)
       {
-         std::cout << p << " ";
+         for(auto q : p) std::cout << q << " ";
       }
       std::cout << "\n";
-      for(double l : recv_length_buffer) std::cout << "length = " << l << std::endl;
+      //for(auto l : recv_length_buffer) std::cout << "length = " << l << std::endl;
    }
 
    MPI_Finalize();
