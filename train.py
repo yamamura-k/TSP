@@ -2,7 +2,6 @@ import os
 
 import torch
 import torch.optim as optim
-import torch.backends.cudnn as cudnn
 from torch.optim import lr_scheduler
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
@@ -11,8 +10,8 @@ import numpy as np
 from argparse import ArgumentParser
 from tqdm import tqdm
 
-from pointer_network import PtrNet
-from neural_comb_opt_rl import NeuralCombOptRL, reward_tsp
+from models.pointer_network import PtrNet
+from models.neural_comb_opt_rl import NeuralCombOptRL, Critic, reward_tsp
 from data_set import TSPDataset
 from utils import plot_loss
 
@@ -60,7 +59,7 @@ def construct(model_name, params, num_workers=0, USE_CUDA=False, is_train=True):
         model = PtrNet(params.embedding_dim, params.hidden_dim, params.num_lstms, params.dropout, params.bidir)
     elif model_name == "NeuralCombOptRL":
         model = NeuralCombOptRL(
-            params.ncity, params.embedding_dim, params.hidden_dim, params.num_lstms,
+            2, params.embedding_dim, params.hidden_dim, params.ncity, params.num_lstms,
             params.dropout, reward_tsp, bidirectional=params.bidir, is_train=True, use_cuda=USE_CUDA)
         solve_exactly = False
     else:
@@ -100,7 +99,7 @@ def train_PtrNet(params, num_workers=0):
         iterator = tqdm(dataloader, unit="Batch")
 
         for batch_i, sample in enumerate(iterator):
-            iterator.set_description(f"Batch {epoch+1}/{params.n_epoch}")
+            iterator.set_description(f"Epoch {epoch+1}/{params.n_epoch}")
 
             train_batch = Variable(sample["coordinate"])
             target_batch = Variable(sample["solution"])
@@ -144,7 +143,7 @@ def train_NeuralCombOptRL(params, num_workers=0):
     if os.path.isfile(model_pth):
         model.load_state_dict(torch.load(model_pth))
     if os.path.isfile(actor_optim_pth):
-        actor_optim.load_state_dict(torch.load(optim_pth))
+        actor_optim.load_state_dict(torch.load(actor_optim_pth))
 
     losses = []
     model.train()
@@ -153,7 +152,7 @@ def train_NeuralCombOptRL(params, num_workers=0):
         iterator = tqdm(dataloader, unit="Batch")
 
         for batch_i, sample in enumerate(iterator):
-            iterator.set_description(f"Batch {batch_i+1}/{params.n_epoch}")
+            iterator.set_description(f"Epoch {epoch+1}/{params.n_epoch}")
 
             train_batch = Variable(sample["coordinate"])
 
@@ -165,19 +164,20 @@ def train_NeuralCombOptRL(params, num_workers=0):
             if batch_i == 0:
                 critic_exp_mvg_avg = R.mean()
             else:
-                critic_exp_mvg_avg = (critic_exp_mvg_avg * beta) + ((1. - beta) * R.mean())
+                critic_exp_mvg_avg = (critic_exp_mvg_avg * params.critic_beta) + ((1. - params.critic_beta) * R.mean())
             
             advantage = R - critic_exp_mvg_avg
-            logprobs = 0
-            nll = 0
-            for prob in probs:
-                logprob = torch.log(prob)
-                nll += -logprob
-                logprobs += logprob
-            nll[(nll != nll).detach()] = 0.
-            logprobs[(logprobs < -1000).detach()] = 0.
-
-            reinforce = advantage*logprobs
+            # logprobs = 0
+            # nll = 0
+            # breakpoint()
+            # for prob in probs:
+            #     logprob = torch.log(prob)
+            #     nll += -logprob
+            #     logprobs += logprob
+            # nll[(nll != nll).detach()] = 0.
+            # logprobs[(logprobs < -1000).detach()] = 0.
+            
+            reinforce = advantage*torch.log(probs).sum()
             actor_loss = reinforce.mean()
 
             actor_optim.zero_grad()
@@ -191,7 +191,7 @@ def train_NeuralCombOptRL(params, num_workers=0):
             losses.append(actor_loss.item())
             batch_loss.append(actor_loss.item())
 
-            iterator.set_postfix(loss=f"{loss.item()}")
+            iterator.set_postfix(loss=f"{actor_loss.item()}")
         iterator.set_postfix(loss=np.average(batch_loss))
     
     return losses, model, actor_optim
