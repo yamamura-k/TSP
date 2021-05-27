@@ -119,10 +119,10 @@ class Decoder(nn.Module):
 
             _input, forget, cell, out = gates.chunk(4, 1)
             
-            _input = F.sigmoid(_input)
-            forget = F.sigmoid(forget)
+            _input = torch.sigmoid(_input)
+            forget = torch.sigmoid(forget)
             cell = torch.tanh(cell)
-            out = F.sigmoid(out)
+            out = torch.sigmoid(out)
 
             context_state = forget*c + _input*cell
             hidden_state = out*torch.tanh(context_state)

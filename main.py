@@ -56,9 +56,10 @@ def test1(filename):
     print("\nga simple", total_dist, "\ntime", time()-ts)
     
     ts = time()
-    tour = IP.solve()
+    tour = IP.solve(solver_name="cplex")
     total_dist = calc_dist(tour, D)
     print("\nip", total_dist, "\ntime", time()-ts)
+    print(*tour)
     
     #plot(tour, coord, figname=f"./{name}_{total_dist}.png")
 
@@ -85,6 +86,7 @@ def test3(params):
     tour = list(tour.detach().numpy()[0])
     total_dist = calc_dist(tour, D)
     print("\nPtrNet", total_dist, "\ntime", time()-ts)
+    print(*tour)
 
     model, _, _ = construct("NeuralCombOptRL", params, is_train=False)
     _input = torch.Tensor([np.asarray([x for x in coord.values()])])
@@ -96,10 +98,9 @@ def test3(params):
     print("\nNeuralCombOptRL", total_dist, "\ntime", time()-ts)
 
 if __name__=="__main__":
-    import pyscipopt
     parser = argparser()
     args = parser.parse_args()
-    # test1(args.f)
+    test1(args.f)
     # test2(args.f)
     test3(args)
 # ToDo
