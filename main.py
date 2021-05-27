@@ -21,6 +21,7 @@ def argparser():
     parser.add_argument('--num_lstms', type=int, default=2, help='Number of LSTM layers')
     parser.add_argument('--dropout', type=float, default=0., help='Dropout value')
     parser.add_argument('--bidir', default=True, action='store_true', help='Bidirectional')
+    parser.add_argument('--ncity', type=int, default=0)
     return parser
 
 def test1(filename):
@@ -78,6 +79,7 @@ def test2(filename):
 
 def test3(params):
     name, ncity, D, coord = read(params.f)
+    params.ncity = ncity
     model, _, _ = construct("PtrNet", params, is_train=False)
     _input = torch.Tensor([np.asarray([x for x in coord.values()])])
     ts = time()
@@ -85,6 +87,7 @@ def test3(params):
     tour = list(tour.detach().numpy()[0])
     total_dist = calc_dist(tour, D)
     print("\nPtrNet", total_dist, "\ntime", time()-ts)
+    print(tour)
 
     model, _, _ = construct("NeuralCombOptRL", params, is_train=False)
     _input = torch.Tensor([np.asarray([x for x in coord.values()])])
@@ -94,9 +97,10 @@ def test3(params):
     total_dist = calc_dist(tour, D)
 
     print("\nNeuralCombOptRL", total_dist, "\ntime", time()-ts)
+    print(tour)
 
 if __name__=="__main__":
-    import pyscipopt
+    #import pyscipopt
     parser = argparser()
     args = parser.parse_args()
     # test1(args.f)

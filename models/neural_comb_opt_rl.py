@@ -54,12 +54,13 @@ class Attention(nn.Module):
         self.inf = self._inf.unsqueeze(1).expand(*mask_size)
 
 class Decoder(nn.Module):
-    def __init__(self, embedding_dim, hidden_dim, max_decode_len):
+    def __init__(self, embedding_dim, hidden_dim, max_decode_len, use_cuda=False):
         super(Decoder, self).__init__()
         self.embedding_dim = embedding_dim
 
         self.hidden_dim = hidden_dim
         self.max_decode_len = max_decode_len
+        self.use_cuda = use_cuda
 
         self.input2hidden = nn.Linear(embedding_dim, 4*hidden_dim)
         self.hidden2hidden = nn.Linear(hidden_dim, 4*hidden_dim)
@@ -68,7 +69,7 @@ class Decoder(nn.Module):
 
         self.mask = Parameter(torch.ones(1), requires_grad=False)
         self.runner = Parameter(torch.zeros(1), requires_grad=False)
-    
+
     def forward(self, embedded_inputs, decoder_input, hidden, context):
         batch_size = embedded_inputs.size(0)
         input_length = self.max_decode_len
@@ -82,6 +83,8 @@ class Decoder(nn.Module):
         runner = runner.unsqueeze(0).expand(batch_size, -1).long()
 
         outputs = torch.ones(batch_size)
+        if self.use_cuda:
+            outputs = outputs.cuda()# gpuを使う場合
         pointers = []
 
         def step(x, hidden):
@@ -90,7 +93,7 @@ class Decoder(nn.Module):
             gates = self.input2hidden(x) + self.hidden2hidden(h)
 
             _input, forget, cell, out = gates.chunk(4, 1)
-            
+
             _input = torch.sigmoid(_input)
             forget = torch.sigmoid(forget)
             cell = torch.tanh(cell)
@@ -103,7 +106,7 @@ class Decoder(nn.Module):
             hidden_t = torch.tanh(self.hidden2out(torch.cat((hidden_t, hidden_state), 1)))
 
             return hidden_t, context_state, output
-        
+
         for _ in range(input_length):
             h_t, c_t, outs = step(decoder_input, hidden)
             hidden = (h_t, c_t)
@@ -119,7 +122,7 @@ class Decoder(nn.Module):
             embedding_mask = one_hot_pointers.unsqueeze(2).expand(-1, -1, self.embedding_dim).byte()
             decoder_input = embedded_inputs[embedding_mask.data].view(batch_size, self.embedding_dim)
 
-            outputs *= max_probs
+            outputs = outputs*max_probs
             pointers.append(indices.unsqueeze(1))
         
         #outputs = torch.cat(outputs).permute(1, 0, 2)
@@ -128,7 +131,7 @@ class Decoder(nn.Module):
         return (outputs, pointers), hidden
 
 class PtrNet(nn.Module):
-    def __init__(self, embedding_dim, hidden_dim, num_lstm_layers, dropout, max_decode_len, bidirectional=False):
+    def __init__(self, embedding_dim, hidden_dim, num_lstm_layers, dropout, max_decode_len, bidirectional=False, use_cuda=False):
         super(PtrNet, self).__init__()
         self.embedding_dim = embedding_dim
         self.max_decode_len = max_decode_len
@@ -137,7 +140,7 @@ class PtrNet(nn.Module):
         self.embedding = nn.Linear(2, embedding_dim)
         self.encoder = Encoder(embedding_dim, hidden_dim, num_lstm_layers, dropout, bidirectional)
 
-        self.decoder = Decoder(embedding_dim, hidden_dim, max_decode_len)
+        self.decoder = Decoder(embedding_dim, hidden_dim, max_decode_len, use_cuda)
         self.decoder_input0 = Parameter(torch.FloatTensor(embedding_dim), requires_grad=False)
 
         nn.init.uniform_(self.decoder_input0, -1, 1)
@@ -209,7 +212,7 @@ class NeuralCombOptRL(nn.Module):
         self.use_cuda = use_cuda
         self.is_train = is_train
         self.max_decode_len = max_decode_len
-        self.actor_net = PtrNet(embedding_dim, hidden_dim, num_lstm_layers, dropout, max_decode_len, bidirectional=bidirectional)
+        self.actor_net = PtrNet(embedding_dim, hidden_dim, num_lstm_layers, dropout, max_decode_len, bidirectional=bidirectional, use_cuda=use_cuda)
 
     
     def forward(self, inputs):
