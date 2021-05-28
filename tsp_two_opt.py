@@ -71,7 +71,7 @@ class TwoOpt:
     def calc_score(self, tour: List[int]) -> float:
         return sum(self.D[i][j] for i, j in zip(tour, tour[1:] + tour[:1]))
     
-    def solve_two_opt(self, MAXSTEP: int =100000, strategy: str=None) -> List[int]:
+    def _solve(self, MAXSTEP: int =100000, strategy: str=None) -> List[int]:
         self.current_tour, self.current_obj = self.initial_tour(strategy=strategy)
         self.best_tour, self.best_obj = list(self.current_tour), self.current_obj
         for _ in range(MAXSTEP):
@@ -80,7 +80,7 @@ class TwoOpt:
         
         return self.best_tour
     
-    def solve_multi_start_two_opt(self, num_start_point: int, MAXSTEP: int =10000, strategy: str=None) -> List[int]:
+    def _solve_multi_start(self, num_start_point: int, MAXSTEP: int =10000, strategy: str=None) -> List[int]:
         self.best_tour = self.solve_two_opt(MAXSTEP=MAXSTEP, strategy=strategy)
         for _ in range(num_start_point - 1):
             cand = TwoOpt(self.ncity, self.D)
@@ -89,3 +89,19 @@ class TwoOpt:
                 self.best_tour = cand.best_tour
                 self.best_obj = cand.best_obj
         return self.best_tour
+
+    def solve(self, num_start_point: int =1, MAXSTEP: int =10000, strategy: str=None) -> List[int]:
+        if num_start_point <= 1:
+            return self._solve(MAXSTEP, strategy)
+        else:
+            return self._solve_multi_start(num_start_point, MAXSTEP, strategy)
+
+if __name__=="__main__":
+    from utils import read, calc_dist
+    filename = "./ALL_tsp/ulysses16.tsp"
+    name, ncity, D, coord = read(filename)
+    problem = TwoOpt(ncity, D)
+    tour = problem.solve()
+    tour_len = calc_dist(tour, D)
+    print(tour_len)
+    print(*tour)

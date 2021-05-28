@@ -18,7 +18,7 @@ class TSPSimAnneal(TwoOpt):
             self.current_tour[i], self.current_tour[j] = self.current_tour[j], self.current_tour[i]
             self.current_obj += _swap_cost
     
-    def solve_simulated_annealing(self, T: float =1e5, T_final: float =1e2, C: float =0.995, MAXSTEP: int =100, strategy: str=None, _type: str ="inhom") -> List[int]:
+    def solve(self, T: float =1e5, T_final: float =1e2, C: float =0.995, MAXSTEP: int =100, strategy: str=None, _type: str ="inhom") -> List[int]:
         self.current_tour, self.current_obj = self.initial_tour(strategy=strategy)
         self.best_tour, self.best_obj = list(self.current_tour), self.current_obj
 
@@ -52,10 +52,20 @@ class TSPSimAnneal(TwoOpt):
         T_final = trial.suggest_uniform("T_final", 0, 1e3)
         C = trial.suggest_uniform("C", 0.5, 1.0)
         strategy = trial.suggest_categorical("strategy", ["random", "greedy", "greedy_random", ""])
-        self.solve_simulated_annealing(T=T, T_final=T_final, C=C, strategy=strategy, _type="inhom")
+        self.solve(T=T, T_final=T_final, C=C, strategy=strategy, _type="inhom")
         return self.best_obj
     
     def opt_hypara(self, ntrials: int =1000, timeout: int =300) -> object:
         study = optuna.create_study(direction="minimize")
         study.optimize(self._objective, n_trials=ntrials, timeout=timeout)
         return study.best_trial
+
+if __name__=="__main__":
+    from utils import read, calc_dist
+    filename = "./ALL_tsp/ulysses16.tsp"
+    name, ncity, D, coord = read(filename)
+    problem = TSPSimAnneal(ncity, D)
+    tour = problem.solve()
+    tour_len = calc_dist(tour, D)
+    print(tour_len)
+    print(*tour)

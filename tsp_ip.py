@@ -16,7 +16,7 @@ class PulpIP:
             self.problem += self.x[i][i] == 0# 同じ都市に止まることはNG
         self.set_MTZ(level=MTZ_level)
 
-        self.problem += self.u[self.cities[0]] == 0
+        self.problem += self.u[self.cities[0]] == 0# 出発地点はindex 0に固定
         for i in self.cities[1:]:
             self.problem += self.u[i] >= 1
     
@@ -76,3 +76,13 @@ class PulpIP:
                     self.x[i][j].setInitialValue(1)
                 else:
                     self.x[i][j].setInitialValue(0)
+
+if __name__=="__main__":
+    from utils import read, calc_dist
+    filename = "./ALL_tsp/ulysses16.tsp"
+    name, ncity, D, coord = read(filename)
+    problem = PulpIP(ncity, D, MTZ_level=2)
+    tour = problem.solve(threads=1)
+    tour_len = calc_dist(tour, D)
+    print(tour_len)
+    print(*tour)

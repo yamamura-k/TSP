@@ -42,3 +42,13 @@ class TSPGA(TwoOpt):
         study = optuna.create_study(direction="minimize")
         study.optimize(self._objective, n_trials=ntrials, timeout=timeout)
         return study.best_trial
+
+if __name__=="__main__":
+    from utils import read, calc_dist
+    filename = "./ALL_tsp/ulysses16.tsp"
+    name, ncity, D, coord = read(filename)
+    problem = TSPGA(ncity, D)
+    tour = problem.solve()
+    tour_len = calc_dist(tour, D)
+    print(tour_len)
+    print(*tour)
